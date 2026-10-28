@@ -1,6 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { readdirSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import type { Node } from "@babel/types";
 import { nodesOf } from "./syntax.test-support";
+
+const ROOT = join(import.meta.dir, "..");
+const ACCEPTANCE = join(ROOT, "acceptance");
 
 const UNCITED_FAMILIES = new Set(["AC", "C", "D"]);
 const DEFINITION = /^- \*\*([A-Z]+-[^*]+)\*\* —/gm;
@@ -74,6 +79,7 @@ function testProblems(
   criteria: readonly string[],
   retired: ReadonlySet<string>,
   tests: readonly AcceptanceTest[],
+  unbuilt: ReadonlySet<string>,
 ): readonly string[] {
   const problems: string[] = [];
   const tested = new Set<string>();
@@ -96,8 +102,15 @@ function testProblems(
         problems.push(`acceptance test "${name}" cites ${criterion}, which the spec does not define`);
     }
   }
-  for (const criterion of criteria)
-    if (!tested.has(criterion)) problems.push(`${criterion} has no acceptance test`);
+  for (const criterion of criteria) {
+    if (unbuilt.has(criterion) && tested.has(criterion))
+      problems.push(`${criterion} is listed as unbuilt but has an acceptance test`);
+    if (!unbuilt.has(criterion) && !tested.has(criterion))
+      problems.push(`${criterion} has no acceptance test`);
+  }
+  for (const criterion of unbuilt)
+    if (!criteria.includes(criterion))
+      problems.push(`${criterion} is listed as unbuilt but the spec does not define it`);
   return problems;
 }
 
@@ -122,14 +135,20 @@ function testsOf(source: string): readonly AcceptanceTest[] {
   return tests;
 }
 
-function citationProblems(spec: string, acceptanceSources: readonly string[]): readonly string[] {
+const NONE_UNBUILT: ReadonlySet<string> = new Set();
+
+function citationProblems(
+  spec: string,
+  acceptanceSources: readonly string[],
+  unbuilt: ReadonlySet<string> = NONE_UNBUILT,
+): readonly string[] {
   const ids = captures(spec, DEFINITION);
   const retired = new Set(captures(spec, RETIRED_DEFINITION));
   const criteria = criteriaOf(spec, retired);
   const tests = acceptanceSources.flatMap(testsOf);
   const missing = [
     ...(criteria.length === 0 ? ["no acceptance criteria found in the spec"] : []),
-    ...(tests.length === 0 ? ["no acceptance tests found"] : []),
+    ...(tests.length === 0 && unbuilt.size === 0 ? ["no acceptance tests found"] : []),
   ];
   if (missing.length > 0) return missing;
   return [
@@ -141,6 +160,7 @@ function citationProblems(spec: string, acceptanceSources: readonly string[]): r
       criteria.map(({ id }) => id),
       retired,
       tests,
+      unbuilt,
     ),
   ];
 }
@@ -156,6 +176,40 @@ const VALID_SPEC = `
 `;
 const PROVEN = `test("AC-1 it does one thing", () => {});`;
 const VALID_TESTS = [PROVEN, `test("AC-2 it does another", () => {});`];
+
+const UNBUILT: ReadonlySet<string> = new Set([
+  "AC-1",
+  "AC-2",
+  "AC-3",
+  "AC-4",
+  "AC-5",
+  "AC-6",
+  "AC-7",
+  "AC-8",
+  "AC-9",
+  "AC-10",
+  "AC-11",
+  "AC-12",
+  "AC-13",
+  "AC-14",
+  "AC-15",
+  "AC-16",
+  "AC-17",
+  "AC-18",
+  "AC-19",
+  "AC-20",
+  "AC-21",
+]);
+
+describe("the spec and the acceptance suite", () => {
+  test("agent-ship's spec and acceptance tests cite each other, each criterion not yet built listed", () => {
+    const spec = readFileSync(join(ROOT, "SPEC.md"), "utf8");
+    const sources = readdirSync(ACCEPTANCE)
+      .filter((file) => file.endsWith(".acceptance.ts"))
+      .map((file) => readFileSync(join(ACCEPTANCE, file), "utf8"));
+    expect(citationProblems(spec, sources, UNBUILT)).toEqual([]);
+  });
+});
 
 describe("the citation check", () => {
   test("passes a spec and suite that cite each other completely", () => {
@@ -180,6 +234,18 @@ describe("the citation check", () => {
     const tests = [...VALID_TESTS, `test("AC-9 it does nothing", () => {});`];
     expect(citationProblems(VALID_SPEC, tests)).toEqual([
       'acceptance test "AC-9 it does nothing" cites AC-9, which the spec does not define',
+    ]);
+  });
+
+  test("lets a criterion listed as unbuilt go without a test, and only that one", () => {
+    expect(citationProblems(VALID_SPEC, [PROVEN], new Set(["AC-2"]))).toEqual([]);
+    expect(citationProblems(VALID_SPEC, [], new Set(["AC-1"]))).toEqual(["AC-2 has no acceptance test"]);
+  });
+
+  test("flags a criterion listed as unbuilt that has a test, or that the spec lacks", () => {
+    expect(citationProblems(VALID_SPEC, VALID_TESTS, new Set(["AC-2", "AC-9"]))).toEqual([
+      "AC-2 is listed as unbuilt but has an acceptance test",
+      "AC-9 is listed as unbuilt but the spec does not define it",
     ]);
   });
 
