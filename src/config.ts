@@ -1,8 +1,8 @@
-import { readFileSync, statSync } from "node:fs";
+import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { unreachable } from "./assert";
 import { refusals } from "./coded-error";
-import { parseVersion, type TagPattern, type Version } from "./version";
+import { parseVersion, printVersion, type TagPattern, type Version } from "./version";
 
 const CONFIG_FILE = "ship.toml";
 
@@ -33,6 +33,7 @@ export type Floor = { readonly paths: readonly string[]; readonly level: FloorLe
 
 export type App = {
   readonly name: string | null;
+  readonly versionSource: string;
   readonly version: Version;
   readonly tag: TagPattern;
   readonly check: string;
@@ -252,6 +253,21 @@ function readVersion(root: string, source: string, key: string): Version {
   return version;
 }
 
+const INDENT = /^\{\r?\n([ \t]*)/;
+
+export function writeVersion(root: string, source: string, version: Version): void {
+  const path = join(root, source);
+  const recorded = readFileSync(path, "utf8");
+  const manifest = parsedJson(recorded);
+  if (!isTable(manifest)) invalid(null, `names ${source}, which is no longer a JSON object`);
+  const written = JSON.stringify(
+    { ...manifest, version: printVersion(version) },
+    null,
+    INDENT.exec(recorded)?.[1] ?? "",
+  );
+  writeFileSync(path, recorded.endsWith("\n") ? `${written}\n` : written);
+}
+
 function parsedJson(source: string): unknown {
   try {
     return JSON.parse(source);
@@ -269,8 +285,10 @@ function tagPatternOf(value: string, app: string | null, key: string): TagPatter
 type Settings = Omit<App, "name" | "paths">;
 
 function settingsOf(root: string, raw: Table, name: string | null, scope: string): Settings {
+  const versionSource = text(raw, "version", scope);
   return {
-    version: readVersion(root, text(raw, "version", scope), keyOf(scope, "version")),
+    versionSource,
+    version: readVersion(root, versionSource, keyOf(scope, "version")),
     tag: tagPatternOf(text(raw, "tag", scope), name, keyOf(scope, "tag")),
     check: text(raw, "check", scope),
     channels: channelsOf(required(raw, "channels", scope), keyOf(scope, "channels")),

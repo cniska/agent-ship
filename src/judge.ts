@@ -38,6 +38,8 @@ export type Facts = {
 
 type Judged = Pick<Project, "root" | "config" | "app">;
 
+type Judging = { readonly version: Version; readonly least: Version | null };
+
 const SHELL = "/bin/sh";
 
 const refuse = refusals<{
@@ -50,6 +52,11 @@ const refuse = refusals<{
   };
   readonly version_not_newer: { readonly version: string; readonly latest: string };
   readonly no_commits_since_tag: { readonly tag: string };
+  readonly bump_below_commits: {
+    readonly version: string;
+    readonly bump: Bump["level"];
+    readonly commits: Bump["commits"];
+  };
   readonly tag_mismatch: { readonly tag: string; readonly tagVersion: string; readonly version: string };
   readonly tag_unsigned: { readonly tag: string; readonly lightweight: boolean };
   readonly tag_not_at_head: { readonly tag: string; readonly commit: string; readonly head: string };
@@ -86,6 +93,12 @@ const refuse = refusals<{
   no_commits_since_tag: {
     message: ({ tag }) => `no commit to release follows the tag ${tag}`,
     resolve: () => "commit the change to release, push it, then run again",
+  },
+  bump_below_commits: {
+    message: ({ version, bump, commits }) =>
+      `${version} is below the ${bump} bump that ${commits.map(({ commit }) => commit).join(", ")} warrant`,
+    resolve: ({ bump }) =>
+      `run agent-ship release ${bump}, or agent-ship release with no level to take the bump`,
   },
   tag_mismatch: {
     message: ({ tag, tagVersion, version }) =>
@@ -171,26 +184,36 @@ export function gather(project: Project): Facts {
   };
 }
 
-export function refuseUnready(facts: Facts, { root, config, app }: Judged): void {
+export function refuseUnready(
+  facts: Facts,
+  { root, config, app }: Judged,
+  { version, least }: Judging,
+): void {
   if (facts.dirty) throw refuse("dirty_tree", { root });
   if (facts.branch !== config.branch)
     throw refuse("not_on_release_branch", { branch: config.branch, current: facts.branch });
   if (facts.origin !== facts.head && !facts.onlyNotesAhead)
     throw refuse("unpushed_commits", { branch: config.branch, head: facts.head, origin: facts.origin });
-  const own = tagOf(app.tag, app.version);
+  const own = tagOf(app.tag, version);
   const latest = highest(facts.tags.filter((tag) => tag.name !== own));
-  if (latest !== null && compareVersions(app.version, latest.version) <= 0)
-    throw refuse("version_not_newer", { version: printVersion(app.version), latest: latest.name });
+  if (latest !== null && compareVersions(version, latest.version) <= 0)
+    throw refuse("version_not_newer", { version: printVersion(version), latest: latest.name });
   if (latest !== null && latest.commit === facts.head)
     throw refuse("no_commits_since_tag", { tag: latest.name });
   if (facts.previous !== null && facts.counted?.length === 0)
     throw refuse("no_commits_since_tag", { tag: facts.previous.name });
+  if (least !== null && compareVersions(version, least) < 0)
+    throw refuse("bump_below_commits", {
+      version: printVersion(version),
+      bump: facts.bump.level,
+      commits: facts.bump.commits,
+    });
   const mismatched = facts.tags.find((tag) => tag.commit === facts.head && tag.name !== own);
   if (mismatched !== undefined)
     throw refuse("tag_mismatch", {
       tag: mismatched.name,
       tagVersion: printVersion(mismatched.version),
-      version: printVersion(app.version),
+      version: printVersion(version),
     });
   const ownTag = facts.tags.find((tag) => tag.name === own) ?? null;
   if (ownTag === null) return;

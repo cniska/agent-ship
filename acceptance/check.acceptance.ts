@@ -1,6 +1,7 @@
 import { afterEach, expect, test } from "bun:test";
 import { join } from "node:path";
 import {
+  APPS_TOML,
   bareRemote,
   codeOf,
   commit,
@@ -300,30 +301,6 @@ test("AC-30 a credential named in a newly pushed ship.toml is read afresh and re
   expect(error.code).toBe("missing_credential");
   expect(error.meta).toEqual({ credential: "NPM_SMOKE_TOKEN", channels: ["npm"], secretsUnread: null });
 });
-
-const APPS_TOML = (web: string, cli: string) => `branch = "main"
-signed = false
-
-[apps.web]
-version = "web/package.json"
-tag = "<app>-v<version>"
-check = "exit 0"
-${web}
-[apps.web.channels.homebrew]
-tap = "owner/homebrew-tap"
-formula = "Formula/web.rb"
-credentials = ["TAP_DISPATCH_TOKEN"]
-
-[apps.cli]
-version = "cli/package.json"
-tag = "<app>-v<version>"
-check = "exit 0"
-${cli}
-[apps.cli.channels.homebrew]
-tap = "owner/homebrew-tap"
-formula = "Formula/cli.rb"
-credentials = ["TAP_DISPATCH_TOKEN"]
-`;
 
 test("AC-32 an app's paths decide which commits count toward its bump and its commits since the tag", () => {
   const w = world();

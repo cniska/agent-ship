@@ -207,6 +207,10 @@ export function codeOf(ran: Ran): unknown {
   return refusal(ran).code;
 }
 
+export function usageCodeOf(ran: Ran): unknown {
+  return failure(ran, 2).code;
+}
+
 export function git(w: World, cwd: string, args: readonly string[]): string {
   return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe", env: w.env }).trim();
 }
@@ -261,6 +265,30 @@ signed = false
 [channels.homebrew]
 tap = "owner/homebrew-tap"
 formula = "Formula/app.rb"
+credentials = ["TAP_DISPATCH_TOKEN"]
+`;
+
+export const APPS_TOML = (web: string, cli: string) => `branch = "main"
+signed = false
+
+[apps.web]
+version = "web/package.json"
+tag = "<app>-v<version>"
+check = "exit 0"
+${web}
+[apps.web.channels.homebrew]
+tap = "owner/homebrew-tap"
+formula = "Formula/web.rb"
+credentials = ["TAP_DISPATCH_TOKEN"]
+
+[apps.cli]
+version = "cli/package.json"
+tag = "<app>-v<version>"
+check = "exit 0"
+${cli}
+[apps.cli.channels.homebrew]
+tap = "owner/homebrew-tap"
+formula = "Formula/cli.rb"
 credentials = ["TAP_DISPATCH_TOKEN"]
 `;
 

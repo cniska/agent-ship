@@ -38,6 +38,10 @@ export function bumpVersion(version: Version, level: Level): Version {
   }
 }
 
+export function isLevel(text: string): text is Level {
+  return LEVELS.some((level) => level === text);
+}
+
 export function levelRank(level: Level): number {
   return LEVELS.indexOf(level);
 }

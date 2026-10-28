@@ -6,22 +6,23 @@ Another module reaches a module only through its bare-named file, so a module's 
 
 ## Modules
 
-| Prefix        | Responsibility                                                              |
-| ------------- | --------------------------------------------------------------------------- |
-| `cli`         | The `agent-ship` command line                                               |
-| `coded-error` | The `CodedError` every module throws, and the exit status each kind maps to |
-| `assert`      | `unreachable`, the end of every `switch`                                    |
-| `exec`        | Starting a program and collecting what it printed                           |
-| `version`     | Versions, levels, bumps and the tags that carry them                        |
-| `glob`        | Matching a path against `*` and `**` globs                                  |
-| `config`      | Reading and validating `ship.toml`                                          |
-| `git`         | The git reads and writes the commands make                                  |
-| `gh`          | Calling `gh` and reading its JSON                                           |
-| `credentials` | Which credentials the channels need and where each is found                 |
-| `bump`        | The level each commit since the previous tag warrants                       |
-| `project`     | The checkout, its config and the app a command acts on                      |
-| `judge`       | The facts about HEAD and the refusals that keep it from releasing           |
-| `check`       | The `check` command's verdict                                               |
+| Prefix        | Responsibility                                                                        |
+| ------------- | ------------------------------------------------------------------------------------- |
+| `cli`         | The `agent-ship` command line                                                         |
+| `coded-error` | The `CodedError` every module throws, and the exit status each kind maps to           |
+| `assert`      | `unreachable`, the end of every `switch`                                              |
+| `exec`        | Starting a program and collecting what it printed                                     |
+| `version`     | Versions, levels, bumps and the tags that carry them                                  |
+| `glob`        | Matching a path against `*` and `**` globs                                            |
+| `config`      | Reading and validating `ship.toml`, and reading and writing the version file it names |
+| `git`         | The git reads and writes the commands make                                            |
+| `gh`          | Calling `gh` and reading its JSON                                                     |
+| `credentials` | Which credentials the channels need and where each is found                           |
+| `bump`        | The level each commit since the previous tag warrants                                 |
+| `project`     | The checkout, its config and the app a command acts on                                |
+| `judge`       | The facts about HEAD and the refusals that keep it from releasing                     |
+| `check`       | The `check` command's verdict                                                         |
+| `release`     | The `release` command: the new version, its commit and tag, or the dry run            |
 
 ## Where to start
 

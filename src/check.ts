@@ -53,7 +53,7 @@ function warnings(project: Project): readonly Warning[] {
 export function check(project: Project): Checked {
   const { app } = project;
   const facts = gather(project);
-  refuseUnready(facts, project);
+  refuseUnready(facts, project, { version: app.version, least: null });
   refuseMissingCredential(project);
   refuseFailedCheck(project);
   return {

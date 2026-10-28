@@ -125,3 +125,32 @@ export function trackedFiles(git: Git): readonly string[] {
     .split(FIELD)
     .filter((file) => file !== "");
 }
+
+export type GitStep = { readonly ok: true } | { readonly ok: false; readonly detail: string };
+
+function step(git: Git, args: readonly string[]): GitStep {
+  const ran = run(git, args);
+  return ran.status === 0 ? { ok: true } : { ok: false, detail: (ran.stderr || ran.stdout).trim() };
+}
+
+export function commitFile(git: Git, file: string, subject: string): GitStep {
+  const added = step(git, ["add", "--", file]);
+  if (!added.ok) return added;
+  return step(git, ["commit", "-q", "-m", subject, "--", file]);
+}
+
+export function createTag(git: Git, tag: string, signed: boolean): GitStep {
+  return step(git, ["tag", signed ? "-s" : "-a", "-m", tag, tag]);
+}
+
+export function restoreFile(git: Git, file: string): void {
+  out(git, ["restore", "--staged", "--worktree", "--", file]);
+}
+
+export function resetTo(git: Git, commit: string): void {
+  out(git, ["reset", "-q", "--keep", commit]);
+}
+
+export function pushCommand(branch: string, tag: string): string {
+  return `git push ${REMOTE} ${branch} && git push ${REMOTE} ${tag}`;
+}

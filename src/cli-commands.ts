@@ -1,24 +1,52 @@
-import { parseArgs } from "node:util";
+import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { check } from "./check";
 import { type Command, PROGRAM, type Runtime, usageError } from "./cli-contract";
 import { messageOf } from "./coded-error";
 import { type Checkout, chooseApp, openCheckout, type Project } from "./project";
+import { rehearse, release, type Target } from "./release";
+import { isLevel, parseVersion } from "./version";
 
 function refuseArguments(command: Command, detail: string): never {
   throw usageError("bad_arguments", { command: command.name, detail, usage: command.usage });
 }
 
-function positionalsOf(command: Command, args: readonly string[]): readonly string[] {
+type Read = {
+  readonly positionals: readonly string[];
+  readonly values: Readonly<Record<string, unknown>>;
+};
+
+const DRY_RUN = "dry-run";
+
+const NO_OPTIONS: ParseArgsOptionsConfig = {};
+
+const RELEASE_OPTIONS: ParseArgsOptionsConfig = { [DRY_RUN]: { type: "boolean" } };
+
+function argumentsOf(command: Command, args: readonly string[], options: ParseArgsOptionsConfig): Read {
   const read = (() => {
     try {
-      return parseArgs({ args: [...args], options: {}, allowPositionals: true, strict: true });
+      return parseArgs({ args: [...args], options, allowPositionals: true, strict: true });
     } catch (error) {
       return refuseArguments(command, messageOf(error));
     }
   })();
   const empty = read.positionals.some((positional) => positional.trim() === "");
   if (empty) refuseArguments(command, "got an empty argument");
-  return read.positionals;
+  return { positionals: read.positionals, values: read.values };
+}
+
+function targetOf(word: string): Target | null {
+  if (isLevel(word)) return { kind: "level", level: word };
+  const version = parseVersion(word);
+  return version === null ? null : { kind: "version", version };
+}
+
+function releaseArguments(command: Command, positionals: readonly string[]) {
+  const [first = null, second = null] = positionals;
+  const target = first === null ? null : targetOf(first);
+  if (second !== null && target === null)
+    return refuseArguments(command, `${first} is neither patch, minor, major nor a version x.y.z`);
+  if (target === null) return { target: { kind: "bump" } as const, app: first };
+  return { target, app: second };
 }
 
 function atMost(command: Command, positionals: readonly string[], count: number): void {
@@ -37,11 +65,24 @@ const checkCommand: Command = {
   usage: `${PROGRAM} check [<app>]`,
   summary: "judge whether HEAD is ready to release, changing nothing",
   run(args: readonly string[], runtime: Runtime): unknown {
-    const positionals = positionalsOf(this, args);
+    const { positionals } = argumentsOf(this, args, NO_OPTIONS);
     atMost(this, positionals, 1);
     const checkout = openCheckout(runtime.cwd, runtime.processEnv);
     return check(projectFor(this, checkout, positionals[0] ?? null));
   },
 };
 
-export const COMMANDS: readonly Command[] = [checkCommand];
+const releaseCommand: Command = {
+  name: "release",
+  usage: `${PROGRAM} release [<patch|minor|major|<version>>] [<app>] [--dry-run]`,
+  summary: "bump the version, commit and tag the release, and print the push command",
+  run(args: readonly string[], runtime: Runtime): unknown {
+    const { positionals, values } = argumentsOf(this, args, RELEASE_OPTIONS);
+    atMost(this, positionals, 2);
+    const { target, app } = releaseArguments(this, positionals);
+    const project = projectFor(this, openCheckout(runtime.cwd, runtime.processEnv), app);
+    return values[DRY_RUN] === true ? rehearse(project, target) : release(project, target);
+  },
+};
+
+export const COMMANDS: readonly Command[] = [checkCommand, releaseCommand];
