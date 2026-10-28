@@ -1,0 +1,33 @@
+{
+  "name": "agent-ship",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "agent-ship": "./bin/agent-ship"
+  },
+  "scripts": {
+    "format": "oxfmt src acceptance scripts",
+    "lint": "oxlint --type-aware --deny-warnings src acceptance scripts && oxfmt --check src acceptance scripts && actionlint",
+    "typecheck": "bunx tsc --noEmit",
+    "test": "bun test",
+    "acceptance": "bun test --timeout 20000 ./acceptance/harness.test.ts ./acceptance/*.acceptance.ts",
+    "knip": "bunx --bun knip",
+    "check": "bun run lint && bun run typecheck && bun run knip && bun test",
+    "prepare": "! git rev-parse --git-dir >/dev/null 2>&1 || git config core.hooksPath .githooks"
+  },
+  "devDependencies": {
+    "@babel/parser": "^7.29.9",
+    "@babel/types": "^7.29.8",
+    "@types/bun": "^1.4.2",
+    "knip": "6.39.0",
+    "oxfmt": "0.75.0",
+    "oxlint": "1.90.0",
+    "oxlint-tsgolint": "7.0.2005",
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "@toon-format/toon": "4.4.0"
+  }
+}
