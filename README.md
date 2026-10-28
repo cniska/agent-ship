@@ -1,6 +1,6 @@
 # agent-ship
 
-> Release tooling for coding agents: check, cut and ship a release to every channel a project ships to, from one config file per repository
+> Release tooling for coding agents: check, make and publish a release to every channel a project ships to, from one config file per repository
 
 [![CI](https://img.shields.io/github/actions/workflow/status/cniska/agent-ship/check.yml?branch=main&style=flat&label=ci)](https://github.com/cniska/agent-ship/actions/workflows/check.yml) [![License](https://img.shields.io/badge/license-MIT-blue?style=flat)](LICENSE)
 
