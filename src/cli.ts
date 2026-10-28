@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { version } from "../package.json";
 import { COMMANDS } from "./cli-commands";
-import { type Command, PROGRAM, type Runtime, usageError } from "./cli-contract";
+import { type Command, type Outcome, PROGRAM, type Runtime, usageError } from "./cli-contract";
 import { exitWithError, exitWithResult, exitWithVersion } from "./cli-output";
 
 const HELP_FLAG = "--help";
@@ -23,10 +23,14 @@ if (flag !== undefined && args.length > 0)
   exitWithError(PROGRAM, usageError("wrong_arity", { command: flag.name, got: args, usage: flag.usage }));
 
 if (requested === HELP_FLAG)
-  exitWithResult(PROGRAM, {
-    commands: COMMANDS.map(({ name, usage, summary }) => ({ name, usage, summary })),
-    flags: FLAGS,
-  });
+  exitWithResult(
+    PROGRAM,
+    {
+      commands: COMMANDS.map(({ name, usage, summary }) => ({ name, usage, summary })),
+      flags: FLAGS,
+    },
+    0,
+  );
 
 if (requested === VERSION_FLAG) exitWithVersion(version);
 
@@ -41,7 +45,7 @@ if (command === undefined)
     }),
   );
 
-function ranOrExited(chosen: Command): unknown {
+function ranOrExited(chosen: Command): Outcome {
   try {
     return chosen.run(args, runtime);
   } catch (error) {
@@ -49,4 +53,6 @@ function ranOrExited(chosen: Command): unknown {
   }
 }
 
-exitWithResult(command.name, ranOrExited(command));
+const { value, status } = ranOrExited(command);
+
+exitWithResult(command.name, value, status);

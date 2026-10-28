@@ -23,6 +23,7 @@ Another module reaches a module only through its bare-named file, so a module's 
 | `judge`       | The facts about HEAD and the refusals that keep it from releasing                     |
 | `check`       | The `check` command's verdict                                                         |
 | `release`     | The `release` command: the new version, its commit and tag, or the dry run            |
+| `doctor`      | The `doctor` command: git and `gh` on `PATH`, and each credential the channels name   |
 
 ## Where to start
 

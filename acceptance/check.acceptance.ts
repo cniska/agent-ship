@@ -188,12 +188,12 @@ test("AC-8 a credential is read from the environment, then .env, then the Action
   expect(missing.meta).toEqual({
     credential: "TAP_DISPATCH_TOKEN",
     channels: ["homebrew"],
-    secretsUnread: null,
+    absence: { reason: "unset" },
   });
   ghAnswers(w, { secretsFail: "gh: not logged in" });
   const unread = refusal(run(w, dir, ["check"]));
   expect(unread.code).toBe("missing_credential");
-  expect(unread.meta).toMatchObject({ secretsUnread: "gh: not logged in" });
+  expect(unread.meta).toMatchObject({ absence: { reason: "secrets_unread", detail: "gh: not logged in" } });
   expect(unread.resolve).toContain("gh auth login");
   ghAnswers(w, {});
   write(dir, ".env", "TAP_DISPATCH_TOKEN=test-tap-token\n");
@@ -299,7 +299,11 @@ test("AC-30 a credential named in a newly pushed ship.toml is read afresh and re
   push(w, dir);
   const error = refusal(checked(w, dir));
   expect(error.code).toBe("missing_credential");
-  expect(error.meta).toEqual({ credential: "NPM_SMOKE_TOKEN", channels: ["npm"], secretsUnread: null });
+  expect(error.meta).toEqual({
+    credential: "NPM_SMOKE_TOKEN",
+    channels: ["npm"],
+    absence: { reason: "unset" },
+  });
 });
 
 test("AC-32 an app's paths decide which commits count toward its bump and its commits since the tag", () => {

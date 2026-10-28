@@ -1,7 +1,7 @@
 import { type Bump, bumpOf, type Counted, countedCommits } from "./bump";
 import { refusals } from "./coded-error";
 import type { App } from "./config";
-import { neededCredentials, presences } from "./credentials";
+import { type Absence, explainAbsence, neededCredentials, presences } from "./credentials";
 import { execute } from "./exec";
 import {
   commitInfo,
@@ -63,7 +63,7 @@ const refuse = refusals<{
   readonly missing_credential: {
     readonly credential: string;
     readonly channels: readonly string[];
-    readonly secretsUnread: string | null;
+    readonly absence: Absence;
   };
   readonly check_failed: { readonly command: string; readonly status: number };
 }>({
@@ -119,14 +119,10 @@ const refuse = refusals<{
     resolve: ({ tag }) => `release from the branch that holds ${tag}, or raise the version above it`,
   },
   missing_credential: {
-    message: ({ credential, channels, secretsUnread }) =>
-      secretsUnread === null
-        ? `${credential}, which ${channels.join(", ")} reads, is not set`
-        : `${credential}, which ${channels.join(", ")} reads, is not set in the environment or .env, and the Actions secrets could not be read: ${secretsUnread}`,
-    resolve: ({ credential, secretsUnread }) =>
-      secretsUnread === null
-        ? `set ${credential} in the environment, in .env at the checkout's root, or as an Actions secret with gh secret set ${credential}; agent-ship doctor shows each credential`
-        : `make gh secret list work in this checkout, with gh auth login, or set ${credential} in the environment or .env, then run again`,
+    message: ({ credential, channels, absence }) =>
+      `${credential}, which ${channels.join(", ")} reads, is missing: ${explainAbsence(credential, absence).detail}`,
+    resolve: ({ credential, absence }) =>
+      `${explainAbsence(credential, absence).fix}, then run again; agent-ship doctor shows each credential`,
   },
   check_failed: {
     message: ({ command, status }) => `the project's check ${command} exited ${status}`,
@@ -226,14 +222,14 @@ export function refuseUnready(
 
 export function refuseMissingCredential({ root, env, app }: Project): void {
   const present = presences(root, env);
-  const needed = neededCredentials(app.channels);
+  const needed = neededCredentials([app]);
   for (const credential of needed) {
     const presence = present(credential);
     if (!presence.present)
       throw refuse("missing_credential", {
         credential: credential.name,
         channels: credential.channels,
-        secretsUnread: presence.unread,
+        absence: presence.absence,
       });
   }
 }

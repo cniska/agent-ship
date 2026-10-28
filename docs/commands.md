@@ -46,8 +46,8 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 | `bad_arguments` | An argument is missing, empty, extra or unknown; an app is missing, unknown or given where there are none (a first argument to `release` that is neither a level nor `x.y.z` is an app); or a tag matches no tag pattern; a usage error |
 | `not_a_checkout` | The command runs outside a git checkout |
 | `config_missing` | The checkout has no `ship.toml` |
-| `config_invalid` | `ship.toml` is not TOML, lacks a key, holds an unknown key or channel kind, a floor's level is not `minor` or `major`, or the version is not `x.y.z` |
 | `secret_in_config` | A `ship.toml` value has the form of a GitHub token, an npm token or a private key |
+| `config_invalid` | `ship.toml` is not TOML, lacks a key, holds an unknown key or channel kind, a floor's level is not `minor` or `major`, or the version is not `x.y.z` |
 | `dirty_tree` | A tracked file changed, or a file git does not ignore is untracked |
 | `not_on_release_branch` | HEAD is not on the release branch |
 | `unpushed_commits` | HEAD is not origin's commit of the release branch, unless the commits on top of it change only files the `notes` paths match |
@@ -62,7 +62,7 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 | `release_failed` | `release`'s commit or tag fails, naming the step and git's message |
 | `tag_missing` | `status` names a tag the repository does not hold |
 
-Where more than one error applies, a command reports only the first in the table's order, except that `bad_arguments` for an app or a tag, judged against `ship.toml`, comes after `secret_in_config`.
+Where more than one error applies, a command reports only the first in the table's order, except that `config_invalid` for a `ship.toml` that is not TOML comes before `secret_in_config`, and `bad_arguments` for an app or a tag, judged against `ship.toml`, comes after `config_invalid`.
 
 ## ship.toml
 

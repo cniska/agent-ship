@@ -1,7 +1,8 @@
 import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { check } from "./check";
-import { type Command, PROGRAM, type Runtime, usageError } from "./cli-contract";
+import { type Command, type Outcome, PROGRAM, type Runtime, usageError } from "./cli-contract";
 import { messageOf } from "./coded-error";
+import { doctor, failed } from "./doctor";
 import { type Checkout, chooseApp, openCheckout, type Project } from "./project";
 import { rehearse, release, type Target } from "./release";
 import { isLevel, parseVersion } from "./version";
@@ -60,15 +61,19 @@ function projectFor(command: Command, checkout: Checkout, app: string | null): P
   return { ...checkout, app: choice.app };
 }
 
+function succeeded(value: unknown): Outcome {
+  return { value, status: 0 };
+}
+
 const checkCommand: Command = {
   name: "check",
   usage: `${PROGRAM} check [<app>]`,
   summary: "judge whether HEAD is ready to release, changing nothing",
-  run(args: readonly string[], runtime: Runtime): unknown {
+  run(args: readonly string[], runtime: Runtime): Outcome {
     const { positionals } = argumentsOf(this, args, NO_OPTIONS);
     atMost(this, positionals, 1);
     const checkout = openCheckout(runtime.cwd, runtime.processEnv);
-    return check(projectFor(this, checkout, positionals[0] ?? null));
+    return succeeded(check(projectFor(this, checkout, positionals[0] ?? null)));
   },
 };
 
@@ -76,13 +81,25 @@ const releaseCommand: Command = {
   name: "release",
   usage: `${PROGRAM} release [<patch|minor|major|<version>>] [<app>] [--dry-run]`,
   summary: "bump the version, commit and tag the release, and print the push command",
-  run(args: readonly string[], runtime: Runtime): unknown {
+  run(args: readonly string[], runtime: Runtime): Outcome {
     const { positionals, values } = argumentsOf(this, args, RELEASE_OPTIONS);
     atMost(this, positionals, 2);
     const { target, app } = releaseArguments(this, positionals);
     const project = projectFor(this, openCheckout(runtime.cwd, runtime.processEnv), app);
-    return values[DRY_RUN] === true ? rehearse(project, target) : release(project, target);
+    return succeeded(values[DRY_RUN] === true ? rehearse(project, target) : release(project, target));
   },
 };
 
-export const COMMANDS: readonly Command[] = [checkCommand, releaseCommand];
+const doctorCommand: Command = {
+  name: "doctor",
+  usage: `${PROGRAM} doctor`,
+  summary: "name each credential the channels need, whether it is set, and the fix for each one missing",
+  run(args: readonly string[], runtime: Runtime): Outcome {
+    const { positionals } = argumentsOf(this, args, NO_OPTIONS);
+    atMost(this, positionals, 0);
+    const report = doctor(runtime.cwd, runtime.processEnv);
+    return { value: report, status: failed(report) ? 1 : 0 };
+  },
+};
+
+export const COMMANDS: readonly Command[] = [checkCommand, releaseCommand, doctorCommand];

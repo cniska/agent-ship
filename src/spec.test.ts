@@ -178,11 +178,9 @@ const PROVEN = `test("AC-1 it does one thing", () => {});`;
 const VALID_TESTS = [PROVEN, `test("AC-2 it does another", () => {});`];
 
 const UNBUILT: ReadonlySet<string> = new Set([
-  "AC-2",
   "AC-20",
   "AC-21",
   "AC-22",
-  "AC-23",
   "AC-24",
   "AC-25",
   "AC-26",

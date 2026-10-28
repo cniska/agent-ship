@@ -91,6 +91,10 @@ function secrets(): never {
   return answer(names.map((name) => ({ name })));
 }
 
+if (group === "--version") {
+  process.stdout.write("gh version 0.0.0 (stand-in)\n");
+  process.exit(0);
+}
 if (group === "secret" && verb === "list") secrets();
 if (group === "run" && verb === "list") runs();
 if (group === "release" && verb === "list")

@@ -10,7 +10,7 @@ type ChannelKind = "github-release" | "npm" | "homebrew";
 
 const CHANNEL_KINDS: readonly ChannelKind[] = ["github-release", "npm", "homebrew"];
 
-type Credential = { readonly name: string; readonly file: boolean };
+export type Credential = { readonly name: string; readonly file: boolean };
 
 type ChannelBase = { readonly credentials: readonly Credential[] };
 
@@ -56,6 +56,7 @@ export type Config =
 const refuse = refusals<{
   readonly config_missing: { readonly root: string };
   readonly config_invalid: { readonly key: string | null; readonly problem: string };
+  readonly secret_in_config: { readonly key: string; readonly form: string };
 }>({
   config_missing: {
     message: ({ root }) => `${root} has no ${CONFIG_FILE}`,
@@ -65,6 +66,11 @@ const refuse = refusals<{
     message: ({ key, problem }) =>
       key === null ? `${CONFIG_FILE} ${problem}` : `${CONFIG_FILE}: ${key} ${problem}`,
     resolve: () => `fix ${CONFIG_FILE}, as docs/commands.md shows, then run the command again`,
+  },
+  secret_in_config: {
+    message: ({ key, form }) => `${CONFIG_FILE}: ${key} holds a value in the form of ${form}`,
+    resolve: ({ key }) =>
+      `remove the secret from ${key}, name the variable that holds it in the channel's credentials instead, and rotate the secret`,
   },
 });
 
@@ -97,6 +103,12 @@ const APP_TAG = "<app>-v<version>";
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const APP_NAME = /^[a-z0-9][a-z0-9-]*$/;
+
+const SECRET_FORMS: readonly { readonly form: string; readonly pattern: RegExp }[] = [
+  { form: "a GitHub token", pattern: /\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})\b/ },
+  { form: "an npm token", pattern: /\bnpm_[A-Za-z0-9]{36,}\b/ },
+  { form: "a private key", pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/ },
+];
 
 function isTable(value: unknown): value is Table {
   return typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof Date);
@@ -311,6 +323,21 @@ function appsOf(root: string, raw: unknown): readonly [NamedApp, ...NamedApp[]] 
   return [namedAppOf(root, ...first), ...rest.map((entry) => namedAppOf(root, ...entry))];
 }
 
+function* stringsIn(value: unknown, key: string): Iterable<{ readonly key: string; readonly value: string }> {
+  if (typeof value === "string") yield { key, value };
+  else if (Array.isArray(value))
+    for (const [index, item] of value.entries()) yield* stringsIn(item, `${key}[${index}]`);
+  else if (isTable(value))
+    for (const [name, item] of Object.entries(value)) yield* stringsIn(item, keyOf(key, name));
+}
+
+function refuseSecrets(raw: Table): void {
+  for (const { key, value } of stringsIn(raw, "")) {
+    const secret = SECRET_FORMS.find(({ pattern }) => pattern.test(value));
+    if (secret !== undefined) throw refuse("secret_in_config", { key, form: secret.form });
+  }
+}
+
 function parsedToml(source: string): unknown {
   try {
     return Bun.TOML.parse(source);
@@ -319,10 +346,7 @@ function parsedToml(source: string): unknown {
   }
 }
 
-export function loadConfig(root: string): Config {
-  const path = join(root, CONFIG_FILE);
-  if (!statSync(path, { throwIfNoEntry: false })?.isFile()) throw refuse("config_missing", { root });
-  const raw = tableAt(parsedToml(readFileSync(path, "utf8")), CONFIG_FILE);
+function configOf(root: string, raw: Table): Config {
   if (raw.apps === undefined) {
     onlyKnown(raw, SINGLE_KEYS, "");
     const shared = { branch: text(raw, "branch", ""), signed: flag(raw, "signed", "") };
@@ -335,4 +359,23 @@ export function loadConfig(root: string): Config {
   onlyKnown(raw, MANY_KEYS, "");
   const shared = { branch: text(raw, "branch", ""), signed: flag(raw, "signed", "") };
   return { ...shared, kind: "apps", apps: appsOf(root, raw.apps) };
+}
+
+export function loadConfig(root: string): Config {
+  const path = join(root, CONFIG_FILE);
+  if (!statSync(path, { throwIfNoEntry: false })?.isFile()) throw refuse("config_missing", { root });
+  const raw = tableAt(parsedToml(readFileSync(path, "utf8")), CONFIG_FILE);
+  refuseSecrets(raw);
+  return configOf(root, raw);
+}
+
+export function appsIn(config: Config): readonly App[] {
+  switch (config.kind) {
+    case "single":
+      return [config.app];
+    case "apps":
+      return config.apps;
+    default:
+      return unreachable(config);
+  }
 }
