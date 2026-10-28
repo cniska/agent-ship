@@ -67,10 +67,15 @@ function runs(): never {
   return answer(runsNow.map((run, index) => ({ databaseId: index + 1, ...run })));
 }
 
-function release(tag: string | undefined): never {
-  const found = state().releases?.find((candidate) => candidate.tagName === tag);
-  if (found === undefined) return refuse("release not found");
-  return answer({ isDraft: found.isDraft, assets: found.assets.map((name) => ({ name })) });
+const RELEASES = "repos/{owner}/{repo}/releases";
+
+function releases(): never {
+  const page = (state().releases ?? []).map(({ tagName, isDraft, assets }) => ({
+    tag_name: tagName,
+    draft: isDraft,
+    assets: assets.map((name) => ({ name })),
+  }));
+  return answer([page]);
 }
 
 function contents(path: string | undefined): never {
@@ -83,7 +88,7 @@ function contents(path: string | undefined): never {
   return process.exit(0);
 }
 
-const [group, verb, target] = args;
+const [group, verb] = args;
 
 function secrets(): never {
   const { secrets: names = [], secretsFail } = state();
@@ -97,9 +102,7 @@ if (group === "--version") {
 }
 if (group === "secret" && verb === "list") secrets();
 if (group === "run" && verb === "list") runs();
-if (group === "release" && verb === "list")
-  answer((state().releases ?? []).map(({ tagName, isDraft }) => ({ tagName, isDraft })));
-if (group === "release" && verb === "view") release(target);
+if (group === "api" && args.includes(RELEASES)) releases();
 if (group === "api") contents(args.find((arg) => CONTENTS.test(arg)));
 
 refuse(`the gh stand-in does not answer: gh ${args.join(" ")}`);

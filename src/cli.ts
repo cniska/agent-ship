@@ -13,7 +13,16 @@ const FLAGS = [
   { name: VERSION_FLAG, usage: `${PROGRAM} ${VERSION_FLAG}`, summary: "print the version alone on one line" },
 ];
 
-const runtime: Runtime = { cwd: process.cwd(), processEnv: process.env };
+const NPM_REGISTRY = "https://registry.npmjs.org";
+
+const TRAILING_SLASH = /\/+$/;
+
+const runtime: Runtime = {
+  cwd: process.cwd(),
+  processEnv: process.env,
+  registry: (process.env.npm_config_registry || NPM_REGISTRY).replace(TRAILING_SLASH, ""),
+  clock: { now: () => Date.now(), sleep: (ms) => Bun.sleepSync(ms) },
+};
 
 const [requested = HELP_FLAG, ...args] = process.argv.slice(2);
 
@@ -45,14 +54,14 @@ if (command === undefined)
     }),
   );
 
-function ranOrExited(chosen: Command): Outcome {
+async function ranOrExited(chosen: Command): Promise<Outcome> {
   try {
-    return chosen.run(args, runtime);
+    return await chosen.run(args, runtime);
   } catch (error) {
     return exitWithError(chosen.name, error);
   }
 }
 
-const { value, status } = ranOrExited(command);
+const { value, status } = await ranOrExited(command);
 
 exitWithResult(command.name, value, status);

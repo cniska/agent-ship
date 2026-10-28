@@ -104,15 +104,13 @@ describe("the gh stand-in answers and records", () => {
     expect(JSON.parse(gh(w, runList).stdout)).toEqual(running);
     expect(JSON.parse(gh(w, runList).stdout)).toEqual(passed);
     expect(JSON.parse(gh(w, runList).stdout)).toEqual(passed);
-    expect(JSON.parse(gh(w, ["release", "view", "v1.0.0", "--json", "isDraft,assets"]).stdout)).toEqual({
-      isDraft: false,
-      assets: [{ name: "app.tgz" }],
-    });
-    expect(gh(w, ["release", "view", "v2.0.0"]).status).toBe(1);
+    expect(
+      JSON.parse(gh(w, ["api", "--paginate", "--slurp", "repos/{owner}/{repo}/releases"]).stdout),
+    ).toEqual([[{ tag_name: "v1.0.0", draft: false, assets: [{ name: "app.tgz" }] }]]);
     expect(gh(w, ["api", "repos/owner/tap/contents/Formula/app.rb"]).stdout).toBe("formula\n");
     expect(gh(w, ["api", "repos/owner/tap/contents/Formula/other.rb"]).status).toBe(1);
     expect(gh(w, ["auth", "status"]).status).toBe(1);
-    expect(ghCalls(w)).toHaveLength(9);
+    expect(ghCalls(w)).toHaveLength(8);
     expect(ghCalls(w).at(-1)).toEqual(["auth", "status"]);
   });
 });

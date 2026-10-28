@@ -4,7 +4,9 @@ export type GhAnswer =
   | { readonly ok: true; readonly json: unknown }
   | { readonly ok: false; readonly detail: string };
 
-type GhText = { readonly ok: true; readonly text: string } | { readonly ok: false; readonly detail: string };
+export type GhText =
+  | { readonly ok: true; readonly text: string }
+  | { readonly ok: false; readonly detail: string };
 
 export type Gh = { readonly root: string; readonly env: ProcessEnv };
 
@@ -14,7 +16,7 @@ function failure(stderr: string, stdout: string): string {
   return (stderr.trim() || stdout.trim()).split("\n")[0] || NO_DETAIL;
 }
 
-function ghText(gh: Gh, args: readonly string[]): GhText {
+export function ghText(gh: Gh, args: readonly string[]): GhText {
   const ran = spawnProgram("gh", args, { cwd: gh.root, env: gh.env });
   if (!ran.started) return { ok: false, detail: `gh could not run: ${ran.detail}` };
   return ran.status === 0

@@ -126,6 +126,26 @@ export function trackedFiles(git: Git): readonly string[] {
     .filter((file) => file !== "");
 }
 
+const NO_SUCH_REF = 1;
+
+export function tagCommit(git: Git, tag: string): string | null {
+  const args = ["rev-parse", "-q", "--verify", `refs/tags/${tag}^{commit}`];
+  const ran = run(git, args);
+  if (ran.status === NO_SUCH_REF) return null;
+  if (ran.status !== 0) throw fault("git_failed", { args, status: ran.status, detail: ran.stderr.trim() });
+  return ran.stdout.trim();
+}
+
+export function filesUnder(git: Git, commit: string, dir: string): readonly string[] {
+  return fields(out(git, ["ls-tree", "-z", "--name-only", commit, "--", `${dir}/`])).filter(
+    (file) => file !== "",
+  );
+}
+
+export function fileAt(git: Git, commit: string, path: string): string {
+  return out(git, ["show", `${commit}:${path}`]);
+}
+
 export type GitStep = { readonly ok: true } | { readonly ok: false; readonly detail: string };
 
 function step(git: Git, args: readonly string[]): GitStep {

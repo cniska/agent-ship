@@ -13,6 +13,7 @@ Another module reaches a module only through its bare-named file, so a module's 
 | `assert`      | `unreachable`, the end of every `switch`                                              |
 | `exec`        | Starting a program and collecting what it printed                                     |
 | `version`     | Versions, levels, bumps and the tags that carry them                                  |
+| `table`       | The guard for a parsed value that is a table of keys                                  |
 | `glob`        | Matching a path against `*` and `**` globs                                            |
 | `config`      | Reading and validating `ship.toml`, and reading and writing the version file it names |
 | `git`         | The git reads and writes the commands make                                            |
@@ -23,6 +24,9 @@ Another module reaches a module only through its bare-named file, so a module's 
 | `judge`       | The facts about HEAD and the refusals that keep it from releasing                     |
 | `check`       | The `check` command's verdict                                                         |
 | `release`     | The `release` command: the new version, its commit and tag, or the dry run            |
+| `workflows`   | The workflows in `.github/workflows` that a push of a tag runs                        |
+| `channels`    | Whether each channel serves a version: the GitHub release, npm and the Homebrew tap   |
+| `status`      | The `status` command: the tag's workflow runs, waited on, and each channel's state    |
 | `doctor`      | The `doctor` command: git and `gh` on `PATH`, and each credential the channels name   |
 
 ## Where to start

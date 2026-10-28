@@ -341,6 +341,19 @@ export function ghCalls(w: World): readonly (readonly string[])[] {
   });
 }
 
+export function registryServes(w: World, name: string, versions: readonly string[]): void {
+  const listed = Object.fromEntries(versions.map((version) => [version, { name, version }]));
+  write(w.registry, `${name}.json`, `${JSON.stringify({ name, versions: listed })}\n`);
+}
+
+export function registryFails(w: World): void {
+  write(w.registry, "FAILING", "\n");
+}
+
+export function registryRequests(w: World): readonly string[] {
+  return loggedLines(w.registryLog);
+}
+
 export function tapHolds(w: World, tap: string, path: string, text: string): void {
   write(join(w.tap, tap), path, text);
 }

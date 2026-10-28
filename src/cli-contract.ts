@@ -1,11 +1,14 @@
 import { usageErrors } from "./coded-error";
 import type { ProcessEnv } from "./exec";
+import type { Clock } from "./status";
 
 export const PROGRAM = "agent-ship";
 
 export type Runtime = {
   readonly cwd: string;
   readonly processEnv: ProcessEnv;
+  readonly registry: string;
+  readonly clock: Clock;
 };
 
 export type ResultStatus = 0 | 1;
@@ -16,7 +19,7 @@ export type Command = {
   readonly name: string;
   readonly usage: string;
   readonly summary: string;
-  run(args: readonly string[], runtime: Runtime): Outcome;
+  run(args: readonly string[], runtime: Runtime): Outcome | Promise<Outcome>;
 };
 
 export const usageError = usageErrors<{

@@ -2,6 +2,7 @@ import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { unreachable } from "./assert";
 import { refusals } from "./coded-error";
+import { isTable, type Table } from "./table";
 import { parseVersion, printVersion, type TagPattern, type Version } from "./version";
 
 const CONFIG_FILE = "ship.toml";
@@ -74,8 +75,6 @@ const refuse = refusals<{
   },
 });
 
-type Table = Readonly<Record<string, unknown>>;
-
 const SINGLE_KEYS = ["version", "tag", "branch", "check", "signed", "notes", "floors", "channels"];
 
 const MANY_KEYS = ["branch", "signed", "apps"];
@@ -109,10 +108,6 @@ const SECRET_FORMS: readonly { readonly form: string; readonly pattern: RegExp }
   { form: "an npm token", pattern: /\bnpm_[A-Za-z0-9]{36,}\b/ },
   { form: "a private key", pattern: /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----/ },
 ];
-
-function isTable(value: unknown): value is Table {
-  return typeof value === "object" && value !== null && !Array.isArray(value) && !(value instanceof Date);
-}
 
 function invalid(key: string | null, problem: string): never {
   throw refuse("config_invalid", { key, problem });

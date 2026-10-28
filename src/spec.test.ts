@@ -177,17 +177,7 @@ const VALID_SPEC = `
 const PROVEN = `test("AC-1 it does one thing", () => {});`;
 const VALID_TESTS = [PROVEN, `test("AC-2 it does another", () => {});`];
 
-const UNBUILT: ReadonlySet<string> = new Set([
-  "AC-20",
-  "AC-21",
-  "AC-22",
-  "AC-24",
-  "AC-25",
-  "AC-26",
-  "AC-27",
-  "AC-28",
-  "AC-29",
-]);
+const UNBUILT: ReadonlySet<string> = new Set(["AC-24", "AC-25", "AC-26"]);
 
 describe("the spec and the acceptance suite", () => {
   test("agent-ship's spec and acceptance tests cite each other, each criterion not yet built listed", () => {

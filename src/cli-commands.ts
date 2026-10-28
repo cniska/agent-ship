@@ -2,9 +2,10 @@ import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { check } from "./check";
 import { type Command, type Outcome, PROGRAM, type Runtime, usageError } from "./cli-contract";
 import { messageOf } from "./coded-error";
-import { doctor, failed } from "./doctor";
-import { type Checkout, chooseApp, openCheckout, type Project } from "./project";
+import { doctor, failed as doctorFailed } from "./doctor";
+import { appOfTag, type Checkout, chooseApp, openCheckout, type Project } from "./project";
 import { rehearse, release, type Target } from "./release";
+import { failed as statusFailed, status } from "./status";
 import { isLevel, parseVersion } from "./version";
 
 function refuseArguments(command: Command, detail: string): never {
@@ -90,6 +91,27 @@ const releaseCommand: Command = {
   },
 };
 
+const statusCommand: Command = {
+  name: "status",
+  usage: `${PROGRAM} status <tag>`,
+  summary: "wait on the runs the tag started, then say whether each channel serves its version",
+  async run(args: readonly string[], runtime: Runtime): Promise<Outcome> {
+    const { positionals } = argumentsOf(this, args, NO_OPTIONS);
+    const [tag] = positionals;
+    if (tag === undefined) return refuseArguments(this, "needs the tag to report on");
+    atMost(this, positionals, 1);
+    const checkout = openCheckout(runtime.cwd, runtime.processEnv);
+    const chosen = appOfTag(checkout.config, tag);
+    if (chosen === null) return refuseArguments(this, `${tag} matches no tag pattern in ship.toml`);
+    const { registry, clock } = runtime;
+    const report = await status(
+      { ...checkout, app: chosen.app },
+      { tag, version: chosen.version, registry, clock },
+    );
+    return { value: report, status: statusFailed(report) ? 1 : 0 };
+  },
+};
+
 const doctorCommand: Command = {
   name: "doctor",
   usage: `${PROGRAM} doctor`,
@@ -98,8 +120,8 @@ const doctorCommand: Command = {
     const { positionals } = argumentsOf(this, args, NO_OPTIONS);
     atMost(this, positionals, 0);
     const report = doctor(runtime.cwd, runtime.processEnv);
-    return { value: report, status: failed(report) ? 1 : 0 };
+    return { value: report, status: doctorFailed(report) ? 1 : 0 };
   },
 };
 
-export const COMMANDS: readonly Command[] = [checkCommand, releaseCommand, doctorCommand];
+export const COMMANDS: readonly Command[] = [checkCommand, releaseCommand, statusCommand, doctorCommand];
