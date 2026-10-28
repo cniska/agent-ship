@@ -7,7 +7,7 @@
 agent-ship releases a project to its GitHub release, npm and a Homebrew tap from the project's `ship.toml`.
 
 - `agent-ship check` judges whether HEAD is ready to release and changes nothing.
-- `agent-ship cut patch` bumps the version, commits and tags it, and prints the command that pushes it; the owner pushes.
+- `agent-ship release` bumps the version by what the Conventional Commits since the previous tag warrant, commits and tags it, and prints the command that pushes it; the owner pushes.
 - The pushed tag runs the project's `release.yml`, which calls agent-ship's reusable workflow to publish to each channel.
 - `agent-ship status <tag>` says whether each channel serves the version, and `agent-ship doctor` reports each credential the channels need and where it comes from.
 
@@ -35,9 +35,9 @@ A release needs credentials on the machine and in CI. `ship.toml` names each one
 
 | Command | Does |
 | --- | --- |
-| `agent-ship check [<app>]` | Judge whether HEAD is ready to release, changing nothing |
-| `agent-ship cut <patch\|minor\|major\|<version>> [<app>]` | Bump the version, commit and tag the release, and print the push command |
-| `agent-ship status <tag>` | Say whether each channel serves the tag's version |
+| `agent-ship check [<app>]` | Judge whether HEAD is ready to release and report the bump its commits warrant, changing nothing |
+| `agent-ship release [<patch\|minor\|major\|<version>>] [<app>] [--dry-run]` | Bump the version, commit and tag the release, and print the push command, or with `--dry-run` print what it would do |
+| `agent-ship status <tag>` | Wait on the runs the tag started and say whether each channel serves the tag's version |
 | `agent-ship doctor` | Name each credential the channels need, whether it is set, and the fix for each one missing |
 | `agent-ship`, `agent-ship --help` | List the commands and flags |
 | `agent-ship --version` | Print the version |

@@ -13,8 +13,8 @@ const COMMANDS = [
     summary: "judge whether HEAD is ready to release, changing nothing",
   },
   {
-    name: "cut",
-    usage: `${PROGRAM} cut <patch|minor|major|<version>> [<app>]`,
+    name: "release",
+    usage: `${PROGRAM} release [<patch|minor|major|<version>>] [<app>] [--dry-run]`,
     summary: "bump the version, commit and tag the release, and print the push command",
   },
   {

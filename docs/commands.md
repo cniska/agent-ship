@@ -6,12 +6,30 @@ Each command prints [TOON](https://toonformat.dev): a result on stdout, or an er
 
 | Command | Does |
 | --- | --- |
-| `agent-ship check [<app>]` | Judge whether HEAD can be released, refusing with the first failing condition in [Errors](#errors); print the app, the version, the tag, the previous tag and the number of commits since it; change nothing |
-| `agent-ship cut <patch\|minor\|major\|<version>> [<app>]` | Write the new version, run `check` on it, commit it alone as `chore: release <tag>`, create the annotated tag, and print the command that pushes the branch and the tag; never push |
-| `agent-ship status <tag>` | Report each channel of the tag's app as `served`, `missing`, or `unreadable` with the reason; exit 1 when one is not `served` |
+| `agent-ship check [<app>]` | Judge whether HEAD can be released, refusing with the first failing condition in [Errors](#errors); print the app, the version, the tag, the previous tag, the number of commits since it, the [bump](#the-bump) with the commits that decide it, and a [warning](#warnings) for each `TODO` or `FIXME`; change nothing |
+| `agent-ship release [<patch\|minor\|major\|<version>>] [<app>] [--dry-run]` | Write the new version, by the bump when no level or version is given, run `check` on it, commit it alone as `chore: release <tag>`, create the annotated tag, and print the command that pushes the branch and the tag; never push |
+| `agent-ship release --dry-run` | Refuse as `release` would, without running the project's check command, or print the version, the tag, the commit's subject and the push command; change nothing |
+| `agent-ship status <tag>` | Wait up to 60 minutes for a finished run of each workflow the tag's push triggers, and report each run `passed`, `failed`, `running` or `missing`; report each channel of the tag's app as `served`, `missing`, or `unreadable` with the reason; exit 1 when a run is not `passed` or a channel is not `served` |
 | `agent-ship doctor` | Report git and `gh` on `PATH`, and each credential the channels name, with the channels that read it, whether it is present and its source; each check `ok`, `warn` or `fail` with its fix; exit 1 when one fails |
 | `agent-ship`, `agent-ship --help` | List each command and flag with its usage and summary |
 | `agent-ship --version` | Print the version alone on one line, not as TOON |
+
+## The bump
+
+The bump comes from the commits since the previous tag, read as [Conventional Commits](https://www.conventionalcommits.org), and is the highest level any of them warrants. The previous tag is the tag with the highest version matching the tag pattern, other than one at HEAD.
+
+| Commit | Warrants |
+| --- | --- |
+| `!` before the subject's colon, or a `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer | `major`, or `minor` below `1.0.0` |
+| Type `feat`, in any case, with or without a scope | `minor` |
+| Any other | `patch` |
+| Changing a file a floor's `paths` match | At least the floor's `level`, a `major` floor giving `minor` below `1.0.0` |
+
+The commits that decide the bump are those whose level is the bump's. With no previous tag the bump is `none`: `release` with no level tags the recorded version with no version commit, and a level or version given is not bounded.
+
+## Warnings
+
+`check` warns on each line holding `TODO` or `FIXME` as a whole word in a tracked file, except test files, Markdown files and the `notes` paths. A test file has a path segment `test`, `tests` or `__tests__`, or a name holding `.test.` or `.spec.`. A warning refuses nothing.
 
 ## Errors
 
@@ -21,22 +39,23 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 | --- | --- |
 | `unknown_command` | The command is not one of the above; a usage error |
 | `wrong_arity` | `--help` or `--version` is given an argument; a usage error |
-| `bad_arguments` | An argument is missing, empty, extra or unknown, `cut` is given other than `patch`, `minor`, `major` or `x.y.z`, an app is missing, unknown or given where there are none, or a tag matches no tag pattern; a usage error |
+| `bad_arguments` | An argument is missing, empty, extra or unknown; an app is missing, unknown or given where there are none (a first argument to `release` that is neither a level nor `x.y.z` is an app); or a tag matches no tag pattern; a usage error |
 | `not_a_checkout` | The command runs outside a git checkout |
 | `config_missing` | The checkout has no `ship.toml` |
-| `config_invalid` | `ship.toml` is not TOML, lacks a key, holds an unknown key or channel kind, or the version is not `x.y.z` |
+| `config_invalid` | `ship.toml` is not TOML, lacks a key, holds an unknown key or channel kind, a floor's level is not `minor` or `major`, or the version is not `x.y.z` |
 | `secret_in_config` | A `ship.toml` value has the form of a GitHub token, an npm token or a private key |
 | `dirty_tree` | A tracked file changed, or a file git does not ignore is untracked |
 | `not_on_release_branch` | HEAD is not on the release branch |
-| `unpushed_commits` | HEAD is not origin's commit of the release branch |
-| `version_not_newer` | The version is not newer than the latest tag, the tag with the highest version matching the tag pattern, the version's own aside; `resolve` names `cut` |
+| `unpushed_commits` | HEAD is not origin's commit of the release branch, unless the commits on top of it change only files the `notes` paths match |
+| `version_not_newer` | The version is not newer than the latest tag, the tag with the highest version matching the tag pattern, the version's own aside; `resolve` names `release` |
 | `no_commits_since_tag` | HEAD is the latest tag's commit |
+| `bump_below_commits` | `release` is given a level below the bump, or a version below the one the bump makes, naming the bump and the commits that decide it |
 | `tag_mismatch` | A release tag at HEAD is not the version's own tag |
 | `tag_unsigned` | The version's tag is lightweight, or unsigned when `ship.toml` says tags are signed |
 | `tag_not_at_head` | The version's tag points at another commit |
 | `missing_credential` | A credential a channel names is not present |
 | `check_failed` | The project's check command exits non-zero |
-| `cut_failed` | `cut`'s commit or tag fails, naming the step and git's message |
+| `release_failed` | `release`'s commit or tag fails, naming the step and git's message |
 | `tag_missing` | `status` names a tag the repository does not hold |
 
 Where more than one error applies, a command reports only the first in the table's order, except that `bad_arguments` for an app or a tag, judged against `ship.toml`, comes after `secret_in_config`.
@@ -51,6 +70,11 @@ tag = "v<version>"
 branch = "main"
 check = "bun run check"
 signed = false
+notes = ["CHANGELOG.md"]
+
+[[floors]]
+paths = ["src/schema/**"]
+level = "minor"
 
 [channels.github-release]
 build = "scripts/build.sh"
@@ -71,8 +95,10 @@ credentials = ["TAP_DISPATCH_TOKEN"]
 | `version` | The `package.json` whose `version` field is the version |
 | `tag` | `v<version>`, or `<app>-v<version>` under `[apps]` |
 | `branch` | The release branch |
-| `check` | The project's check command, run by `check` and `cut` |
+| `check` | The project's check command, run by `check` and `release` |
 | `signed` | Whether release tags are signed |
+| `notes` | The changelog and store release notes, optional |
+| `floors` | Bump floors, optional, each with `paths` and a `level` of `minor` or `major` |
 | `channels.<kind>` | One table per channel: `github-release`, `npm` or `homebrew` |
 | `channels.<kind>.credentials` | The names of the variables holding the credentials the channel reads |
 | `channels.<kind>.file-credentials` | The names of variables whose values are paths to credential files |
@@ -80,7 +106,9 @@ credentials = ["TAP_DISPATCH_TOKEN"]
 | `channels.npm.packages`, `.smoke` | The packages it publishes, and the command run against the installed version |
 | `channels.homebrew.tap`, `.formula` | The tap repository dispatched to repin, and its formula |
 
-A repository of several apps puts `version`, `tag`, `check` and `channels` under `[apps.<app>]`, and each command that takes `[<app>]` then needs the app's name.
+Each path in `notes` and `floors` is a file or a glob relative to the checkout's root, where `*` matches within one path segment and `**` across segments.
+
+A repository of several apps puts `version`, `tag`, `check`, `channels`, `notes` and `floors` under `[apps.<app>]`, and each command that takes `[<app>]` then needs the app's name.
 
 ## Credentials
 

@@ -39,8 +39,8 @@ A repository of several apps triggers on each app's tag pattern, such as `cli-v*
 
 ## Each release
 
-1. On a clean release branch at origin's commit, run `agent-ship check`, then `agent-ship cut patch|minor|major`. `cut` commits `chore: release <tag>`, tags it and prints the push command.
-2. Push the branch, then the tag, as `cut` prints. The tag starts the release.
+1. On a clean release branch at origin's commit, run `agent-ship check`, then `agent-ship release`, which takes the bump the commits warrant, or `agent-ship release patch|minor|major`. `release` commits `chore: release <tag>`, tags it and prints the push command.
+2. Push the branch, then the tag, as `release` prints. The tag starts the release.
 3. Run `agent-ship status <tag>` until every channel is `served`.
 
 A tag that published nothing can be deleted and made again once the fix is on the release branch. Once a tag has published anything, the fix goes out as a new, higher version; a tag is never moved.
