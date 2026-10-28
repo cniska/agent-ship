@@ -16,7 +16,7 @@ A channel that already serves the version is skipped, so rerunning the workflow 
 
 ## Calling it
 
-A project's own `.github/workflows/release.yml` runs on its release tags and calls the reusable workflow at a release tag of agent-ship. It passes its secrets, and grants the permission to request an OIDC token that npm's trusted publishing and the attestations need.
+A project's own `.github/workflows/release.yml` runs on its release tags and calls the reusable workflow pinned to the full commit sha of an agent-ship release tag, with that tag's version as the trailing comment. It passes its secrets, and grants the permission to request an OIDC token that npm's trusted publishing and the attestations need.
 
 ```yaml
 name: Release
@@ -27,7 +27,7 @@ on:
 
 jobs:
   release:
-    uses: cniska/agent-ship/.github/workflows/release.yml@vX.Y.Z
+    uses: cniska/agent-ship/.github/workflows/release.yml@<sha> # vX.Y.Z
     permissions:
       contents: write
       id-token: write
@@ -35,7 +35,7 @@ jobs:
     secrets: inherit
 ```
 
-A repository of several apps triggers on each app's tag pattern, such as `cli-v*`.
+`gh api repos/cniska/agent-ship/commits/vX.Y.Z -q .sha` prints the commit sha of a release tag. A repository of several apps triggers on each app's tag pattern, such as `cli-v*`.
 
 ## Each release
 

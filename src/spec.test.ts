@@ -208,6 +208,8 @@ const UNBUILT: ReadonlySet<string> = new Set([
   "AC-28",
   "AC-29",
   "AC-30",
+  "AC-31",
+  "AC-32",
 ]);
 
 describe("the spec and the acceptance suite", () => {

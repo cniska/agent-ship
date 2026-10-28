@@ -18,6 +18,8 @@ Each command prints [TOON](https://toonformat.dev): a result on stdout, or an er
 
 The bump comes from the commits since the previous tag, read as [Conventional Commits](https://www.conventionalcommits.org), and is the highest level any of them warrants. The previous tag is the tag with the highest version matching the tag pattern, other than one at HEAD.
 
+An app that names `paths` counts only the commits that change a file they match: only those decide its bump, make up its commits since the previous tag, and keep it from `no_commits_since_tag`. An app without `paths` counts every commit.
+
 | Commit | Warrants |
 | --- | --- |
 | `!` before the subject's colon, or a `BREAKING CHANGE:` or `BREAKING-CHANGE:` footer | `major`, or `minor` below `1.0.0` |
@@ -26,6 +28,8 @@ The bump comes from the commits since the previous tag, read as [Conventional Co
 | Changing a file a floor's `paths` match | At least the floor's `level`, a `major` floor giving `minor` below `1.0.0` |
 
 The commits that decide the bump are those whose level is the bump's. With no previous tag the bump is `none`: `release` with no level tags the recorded version with no version commit, and a level or version given is not bounded.
+
+Once a release is made and more commits land, the version's tag is behind HEAD. `check` then passes: it prints the version and its tag, takes that tag as the previous tag, and reports the bump the next `release` takes.
 
 ## Warnings
 
@@ -48,11 +52,11 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 | `not_on_release_branch` | HEAD is not on the release branch |
 | `unpushed_commits` | HEAD is not origin's commit of the release branch, unless the commits on top of it change only files the `notes` paths match |
 | `version_not_newer` | The version is not newer than the latest tag, the tag with the highest version matching the tag pattern, the version's own aside; `resolve` names `release` |
-| `no_commits_since_tag` | HEAD is the latest tag's commit |
+| `no_commits_since_tag` | HEAD is the latest tag's commit, or no commit the app counts follows the previous tag |
 | `bump_below_commits` | `release` is given a level below the bump, or a version below the one the bump makes, naming the bump and the commits that decide it |
 | `tag_mismatch` | A release tag at HEAD is not the version's own tag |
-| `tag_unsigned` | The version's tag is lightweight, or unsigned when `ship.toml` says tags are signed |
-| `tag_not_at_head` | The version's tag points at another commit |
+| `tag_unsigned` | The version's tag at HEAD is lightweight, or unsigned when `ship.toml` says tags are signed |
+| `tag_not_at_head` | The version's tag points at a commit that is not HEAD and that HEAD does not descend from |
 | `missing_credential` | A credential a channel names is not present |
 | `check_failed` | The project's check command exits non-zero |
 | `release_failed` | `release`'s commit or tag fails, naming the step and git's message |
@@ -99,6 +103,7 @@ credentials = ["TAP_DISPATCH_TOKEN"]
 | `signed` | Whether release tags are signed |
 | `notes` | The changelog and store release notes, optional |
 | `floors` | Bump floors, optional, each with `paths` and a `level` of `minor` or `major` |
+| `paths` | Under `[apps.<app>]` only, the files whose commits count toward the app's bump, optional |
 | `channels.<kind>` | One table per channel: `github-release`, `npm` or `homebrew` |
 | `channels.<kind>.credentials` | The names of the variables holding the credentials the channel reads |
 | `channels.<kind>.file-credentials` | The names of variables whose values are paths to credential files |
@@ -106,9 +111,9 @@ credentials = ["TAP_DISPATCH_TOKEN"]
 | `channels.npm.packages`, `.smoke` | The packages it publishes, and the command run against the installed version |
 | `channels.homebrew.tap`, `.formula` | The tap repository dispatched to repin, and its formula |
 
-Each path in `notes` and `floors` is a file or a glob relative to the checkout's root, where `*` matches within one path segment and `**` across segments.
+Each path in `notes`, `floors` and an app's `paths` is a file or a glob relative to the checkout's root, where `*` matches within one path segment and `**` across segments.
 
-A repository of several apps puts `version`, `tag`, `check`, `channels`, `notes` and `floors` under `[apps.<app>]`, and each command that takes `[<app>]` then needs the app's name.
+A repository of several apps puts `version`, `tag`, `check`, `channels`, `notes`, `floors` and an optional `paths` under `[apps.<app>]`, and each command that takes `[<app>]` then needs the app's name.
 
 ## Credentials
 
