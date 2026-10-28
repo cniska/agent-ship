@@ -4,6 +4,7 @@ import { unreachable } from "./assert";
 import type { App, Channel, Credential } from "./config";
 import type { ProcessEnv } from "./exec";
 import { type Gh, ghJson } from "./gh";
+import { isTable } from "./table";
 
 export type Absence =
   | { readonly reason: "unset" }
@@ -70,7 +71,7 @@ function isReadableFile(path: string): boolean {
 }
 
 function isNamed(value: unknown): value is { readonly name: string } {
-  return typeof value === "object" && value !== null && "name" in value && typeof value.name === "string";
+  return isTable(value) && typeof value.name === "string";
 }
 
 function actionsSecrets(gh: Gh): Secrets {
