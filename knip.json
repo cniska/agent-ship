@@ -1,5 +1,17 @@
 {
   "$schema": "node_modules/knip/schema.json",
-  "project": ["src/**/*.ts", "acceptance/**/*.ts", "scripts/**/*.ts"],
-  "ignoreBinaries": ["actionlint"]
+  "project": [
+    "src/**/*.ts",
+    "acceptance/**/*.ts",
+    "scripts/**/*.ts"
+  ],
+  "ignoreBinaries": [
+    "actionlint"
+  ],
+  "entry": [
+    "src/cli.ts",
+    "acceptance/launch.ts",
+    "acceptance/gh.ts",
+    "acceptance/clock.ts"
+  ]
 }

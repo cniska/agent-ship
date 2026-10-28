@@ -178,17 +178,7 @@ const PROVEN = `test("AC-1 it does one thing", () => {});`;
 const VALID_TESTS = [PROVEN, `test("AC-2 it does another", () => {});`];
 
 const UNBUILT: ReadonlySet<string> = new Set([
-  "AC-1",
   "AC-2",
-  "AC-3",
-  "AC-4",
-  "AC-5",
-  "AC-6",
-  "AC-7",
-  "AC-8",
-  "AC-9",
-  "AC-10",
-  "AC-11",
   "AC-12",
   "AC-13",
   "AC-14",
@@ -207,9 +197,7 @@ const UNBUILT: ReadonlySet<string> = new Set([
   "AC-27",
   "AC-28",
   "AC-29",
-  "AC-30",
   "AC-31",
-  "AC-32",
 ]);
 
 describe("the spec and the acceptance suite", () => {

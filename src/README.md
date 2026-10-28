@@ -2,13 +2,26 @@
 
 Flat, so a module is found by name. A file's prefix is its module: `cli-output.ts` would belong to `cli`. A module that is one file carries its bare name. A test sits beside its module as `<module>.test.ts`; a file several tests share is `<name>.test-support.ts`, and `test-env.ts` is the environment `bunfig.toml` preloads for every test.
 
-Another module reaches a module only through its bare-named file, so a module's parts are its own and no module imports the entry. Only the entry reads the environment; it passes what the rest needs. No module starts a process; among the tests, only `cli.test.ts`, which holds the one CLI runner, and the repo fixtures do. A module makes no error but a `CodedError`, and every `switch` ends in a `default` that calls `unreachable`. [`modules.test.ts`](modules.test.ts) holds each of these, and reads the table below for the modules.
+Another module reaches a module only through its bare-named file, so a module's parts are its own and no module imports the entry. Only the entry reads the environment; it passes what the rest needs. Only `exec` starts a process; among the tests, only `cli.test.ts`, which holds the one CLI runner, and the repo fixtures do. A module makes no error but a `CodedError`, and every `switch` ends in a `default` that calls `unreachable`. [`modules.test.ts`](modules.test.ts) holds each of these, and reads the table below for the modules.
 
 ## Modules
 
-| Prefix | Responsibility                |
-| ------ | ----------------------------- |
-| `cli`  | The `agent-ship` command line |
+| Prefix        | Responsibility                                                              |
+| ------------- | --------------------------------------------------------------------------- |
+| `cli`         | The `agent-ship` command line                                               |
+| `coded-error` | The `CodedError` every module throws, and the exit status each kind maps to |
+| `assert`      | `unreachable`, the end of every `switch`                                    |
+| `exec`        | Starting a program and collecting what it printed                           |
+| `version`     | Versions, levels, bumps and the tags that carry them                        |
+| `glob`        | Matching a path against `*` and `**` globs                                  |
+| `config`      | Reading and validating `ship.toml`                                          |
+| `git`         | The git reads and writes the commands make                                  |
+| `gh`          | Calling `gh` and reading its JSON                                           |
+| `credentials` | Which credentials the channels need and where each is found                 |
+| `bump`        | The level each commit since the previous tag warrants                       |
+| `project`     | The checkout, its config and the app a command acts on                      |
+| `judge`       | The facts about HEAD and the refusals that keep it from releasing           |
+| `check`       | The `check` command's verdict                                               |
 
 ## Where to start
 

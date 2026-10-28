@@ -96,7 +96,7 @@ const MODULES = modulesOf(readFileSync(README, "utf8"));
 
 const ENTRY = "cli";
 
-const PROCESS_RUNNERS: ReadonlySet<string> = new Set();
+const PROCESS_RUNNERS: ReadonlySet<string> = new Set(["exec"]);
 
 const TEST_PROCESS_RUNNERS = new Set(["cli.test.ts", "repo.test-support.ts"]);
 

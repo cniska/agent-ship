@@ -15,18 +15,18 @@ function cli(...args: string[]) {
 }
 
 describe("the cli", () => {
-  test("prints the command listing as TOON naming the program, exit 0", () => {
+  test("prints the command and flag listing as TOON naming the program, exit 0", () => {
     expect(cli()).toEqual({
       status: 0,
       stdout: [
         "command: agent-ship",
         "ok: true",
         "result:",
-        "  commands[4]{name,usage,summary}:",
+        "  commands[1]{name,usage,summary}:",
         '    check,"agent-ship check [<app>]","judge whether HEAD is ready to release, changing nothing"',
-        '    release,"agent-ship release [<patch|minor|major|<version>>] [<app>] [--dry-run]","bump the version, commit and tag the release, and print the push command"',
-        "    status,agent-ship status <tag>,say whether each channel serves the tag's version",
-        '    doctor,agent-ship doctor,"name each credential the channels need, whether it is set, and the fix for each one missing"',
+        "  flags[2]{name,usage,summary}:",
+        '    "--help",agent-ship --help,list the commands and flags',
+        '    "--version",agent-ship --version,print the version alone on one line',
         "",
       ].join("\n"),
       stderr: "",

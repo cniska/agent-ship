@@ -1,32 +1,52 @@
 #!/usr/bin/env bun
-import { writeSync } from "node:fs";
-import { encode } from "@toon-format/toon";
+import { version } from "../package.json";
+import { COMMANDS } from "./cli-commands";
+import { type Command, PROGRAM, type Runtime, usageError } from "./cli-contract";
+import { exitWithError, exitWithResult, exitWithVersion } from "./cli-output";
 
-const PROGRAM = "agent-ship";
+const HELP_FLAG = "--help";
 
-const STDOUT = 1;
+const VERSION_FLAG = "--version";
 
-const COMMANDS = [
-  {
-    name: "check",
-    usage: `${PROGRAM} check [<app>]`,
-    summary: "judge whether HEAD is ready to release, changing nothing",
-  },
-  {
-    name: "release",
-    usage: `${PROGRAM} release [<patch|minor|major|<version>>] [<app>] [--dry-run]`,
-    summary: "bump the version, commit and tag the release, and print the push command",
-  },
-  {
-    name: "status",
-    usage: `${PROGRAM} status <tag>`,
-    summary: "say whether each channel serves the tag's version",
-  },
-  {
-    name: "doctor",
-    usage: `${PROGRAM} doctor`,
-    summary: "name each credential the channels need, whether it is set, and the fix for each one missing",
-  },
+const FLAGS = [
+  { name: HELP_FLAG, usage: `${PROGRAM} ${HELP_FLAG}`, summary: "list the commands and flags" },
+  { name: VERSION_FLAG, usage: `${PROGRAM} ${VERSION_FLAG}`, summary: "print the version alone on one line" },
 ];
 
-writeSync(STDOUT, `${encode({ command: PROGRAM, ok: true, result: { commands: COMMANDS } })}\n`);
+const runtime: Runtime = { cwd: process.cwd(), processEnv: process.env };
+
+const [requested = HELP_FLAG, ...args] = process.argv.slice(2);
+
+const flag = FLAGS.find((known) => known.name === requested);
+
+if (flag !== undefined && args.length > 0)
+  exitWithError(PROGRAM, usageError("wrong_arity", { command: flag.name, got: args, usage: flag.usage }));
+
+if (requested === HELP_FLAG)
+  exitWithResult(PROGRAM, {
+    commands: COMMANDS.map(({ name, usage, summary }) => ({ name, usage, summary })),
+    flags: FLAGS,
+  });
+
+if (requested === VERSION_FLAG) exitWithVersion(version);
+
+const command = COMMANDS.find((known) => known.name === requested);
+
+if (command === undefined)
+  exitWithError(
+    PROGRAM,
+    usageError("unknown_command", {
+      name: requested,
+      usage: `${PROGRAM} ${[...COMMANDS, ...FLAGS].map(({ name }) => name).join("|")}`,
+    }),
+  );
+
+function ranOrExited(chosen: Command): unknown {
+  try {
+    return chosen.run(args, runtime);
+  } catch (error) {
+    return exitWithError(chosen.name, error);
+  }
+}
+
+exitWithResult(command.name, ranOrExited(command));
