@@ -104,6 +104,8 @@ test("AC-26 the release is a draft after every file's attestation and published 
   expect(npmIf).toContain("needs.plan.outputs.github-release != 'publish'");
   const downloaded = index(npm, running("gh release download"), "putting the release's files at their paths");
   expect(textAt(npm[downloaded], "if")).toContain("needs.plan.outputs.npm-build != ''");
+  const holdsToken = environments.flatMap((env, at) => ("GH_TOKEN" in env ? [at] : []));
+  expect(holdsToken).toEqual([environments.length - npm.length + downloaded]);
   const builtNpm = index(npm, running('"$BUILD"'), "building the npm packages");
   const found = index(npm, running("scripts/npm-packages.ts"), "finding each package's directory");
   const published = index(npm, running("npm publish"), "publishing to npm");
