@@ -101,6 +101,11 @@ test("AC-26 each target builds on its own runner, the release is a draft after e
   expect(tableAt(built[build], "env").TARGET).toBe("${{ matrix.target }}");
   const kept = index(built, (step) => textAt(step, "uses").startsWith("actions/upload-artifact@"), "keeping");
   expect(build < kept).toBe(true);
+  for (const job of Object.keys(jobs))
+    for (const upload of stepsOf(job).filter((step) =>
+      textAt(step, "uses").startsWith("actions/upload-artifact@"),
+    ))
+      expect(tableAt(upload, "with").overwrite).toBe(true);
 
   const release = stepsOf("github-release");
   expect(needsOf("github-release")).toContain("github-release-targets");

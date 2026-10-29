@@ -28,7 +28,7 @@ The plan gives each channel kind one stage:
 
 ### Reruns and concurrent runs
 
-A rerun on the same tag publishes nothing twice. The release job attaches to an already published release only the files it lacks, and deletes a draft an earlier run left. The npm job skips each package the registry already serves.
+A rerun on the same tag publishes nothing twice. Each job replaces the files an earlier attempt of the run kept. The release job attaches to an already published release only the files it lacks, and deletes a draft an earlier run left. The npm job skips each package the registry already serves.
 
 Two runs of one tag never publish at once. The workflow holds the concurrency group `agent-ship-release-<repository>-<ref>` and never cancels a run in progress. A called workflow sees the caller's `github` context, so a caller group of the same name would make the called workflow wait on its own caller. The caller in [Calling it](#calling-it) names its group `release-<ref>`.
 

@@ -168,6 +168,7 @@ jobs:
           path: ${{ runner.temp }}/files.tar
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 
   github-release:
     name: GitHub release
@@ -285,6 +286,7 @@ jobs:
           path: ${{ runner.temp }}/release.tar
           if-no-files-found: error
           retention-days: 1
+          overwrite: true
 
       - name: Attest the build provenance of every file
         if: needs.plan.outputs.github-release == 'publish'
