@@ -8,7 +8,7 @@
   },
   "type": "module",
   "bin": {
-    "agent-ship": "./bin/agent-ship"
+    "agent-ship": "bin/agent-ship"
   },
   "files": [
     "bin/",
