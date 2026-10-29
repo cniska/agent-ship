@@ -87,11 +87,7 @@ test("AC-26 the release is a draft after every file's attestation and published 
   expect(textAt(release[build], "run")).toContain('[ -f "$file" ]');
   const attest = index(release, (step) => textAt(step, "uses").startsWith("actions/attest@"), "attesting");
   expect(tableAt(release[attest], "with")["subject-path"]).toBe("${{ steps.build.outputs.subjects }}");
-  const draft = index(release, running("gh release create"), "drafting");
-  expect(textAt(release[draft], "run")).toContain("--draft --verify-tag");
-  expect(textAt(release[draft], "run")).toContain('"${files[@]}"');
-  expect(textAt(release[draft], "run")).toContain('gh release upload "$TAG" "${absent[@]}"');
-  expect(textAt(release[draft], "run")).not.toContain("--clobber");
+  const draft = index(release, running("scripts/release-files.ts"), "drafting");
   const publish = index(release, running("--draft=false"), "publishing the release");
   expect(build < attest && attest < draft && draft < publish).toBe(true);
 

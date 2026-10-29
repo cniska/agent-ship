@@ -106,7 +106,7 @@ describe("the gh stand-in answers and records", () => {
     expect(JSON.parse(gh(w, runList).stdout)).toEqual(passed);
     expect(
       JSON.parse(gh(w, ["api", "--paginate", "--slurp", "repos/{owner}/{repo}/releases"]).stdout),
-    ).toEqual([[{ tag_name: "v1.0.0", draft: false, assets: [{ name: "app.tgz" }] }]]);
+    ).toEqual([[{ id: 1, tag_name: "v1.0.0", draft: false, assets: [{ name: "app.tgz" }] }]]);
     expect(gh(w, ["api", "repos/owner/tap/contents/Formula/app.rb"]).stdout).toBe("formula\n");
     expect(gh(w, ["api", "repos/owner/tap/contents/Formula/other.rb"]).status).toBe(1);
     expect(gh(w, ["auth", "status"]).status).toBe(1);

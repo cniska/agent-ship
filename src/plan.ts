@@ -2,11 +2,12 @@ import { readFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { unreachable } from "./assert";
 import { registryOf, type Serving, serving } from "./channels";
-import { faults, refusals } from "./coded-error";
+import { refusals } from "./coded-error";
 import { type App, appsIn, CHANNEL_KINDS, type Channel } from "./config";
 import { neededCredentials } from "./credentials";
 import type { ProcessEnv } from "./exec";
 import { type Git, trackedFiles } from "./git";
+import { invalidInput, requiredInput } from "./inputs";
 import { appOfTag, type Checkout } from "./project";
 import { isTable, parsedJson } from "./table";
 import { compareVersions, printVersion, tagOf, type Version } from "./version";
@@ -76,26 +77,10 @@ const refuse = refusals<{
   },
 });
 
-const fault = faults<{
-  readonly plan_input_invalid: { readonly variable: string; readonly problem: string };
-}>({
-  plan_input_invalid: {
-    message: ({ variable, problem }) => `${variable} ${problem}`,
-    resolve: () => "run the plan from the release workflow, which sets TAG, SECRET_NAMES and GITHUB_OUTPUT",
-  },
-});
-
-function requiredInput(env: ProcessEnv, variable: string): string {
-  const value = env[variable];
-  if (value === undefined || value === "")
-    throw fault("plan_input_invalid", { variable, problem: "is not set" });
-  return value;
-}
-
 function secretNamesOf(text: string): ReadonlySet<string> {
   const parsed = parsedJson(text);
   if (!Array.isArray(parsed) || !parsed.every((name) => typeof name === "string"))
-    throw fault("plan_input_invalid", { variable: "SECRET_NAMES", problem: "is not a JSON list of names" });
+    throw invalidInput("SECRET_NAMES", "is not a JSON list of names");
   return new Set(parsed);
 }
 

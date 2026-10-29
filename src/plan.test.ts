@@ -2,6 +2,7 @@ import { afterAll, afterEach, describe, expect, test } from "bun:test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { recordOf } from "./coded-error";
+import type { ProcessEnv } from "./exec";
 import { outputFile, outputsOf, type Plan, planInputs, planRelease } from "./plan";
 import { openCheckout } from "./project";
 import { git, removeScratchDirs, scratchDir } from "./repo.test-support";
@@ -75,6 +76,15 @@ async function refusal(dir: string, tag: string, secrets: readonly string[]) {
   throw new Error("the plan was not refused");
 }
 
+function inputFault(env: ProcessEnv) {
+  try {
+    planInputs(env);
+  } catch (error) {
+    return recordOf(error);
+  }
+  throw new Error("the inputs were not refused");
+}
+
 describe("the release plan", () => {
   test("refuses a tag that is not the version source's release tag, naming the tag it would be", async () => {
     const dir = project();
@@ -136,8 +146,20 @@ describe("the release plan", () => {
   });
 
   test("refuses inputs the workflow did not set", () => {
-    for (const env of [{}, { TAG: "v1", SECRET_NAMES: "[1]", GITHUB_OUTPUT: "/dev/null" }])
-      expect(() => planInputs(env)).toThrow();
+    const cases = [
+      { env: {}, variable: "TAG", problem: "is not set" },
+      { env: { TAG: "v1", SECRET_NAMES: "[]" }, variable: "GITHUB_OUTPUT", problem: "is not set" },
+      {
+        env: { TAG: "v1", SECRET_NAMES: "[1]", GITHUB_OUTPUT: "/dev/null" },
+        variable: "SECRET_NAMES",
+        problem: "is not a JSON list of names",
+      },
+    ];
+    for (const { env, variable, problem } of cases) {
+      const record = inputFault(env);
+      expect(record.code).toBe("workflow_input_invalid");
+      expect(record.meta).toEqual({ variable, problem });
+    }
   });
 });
 

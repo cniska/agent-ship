@@ -134,6 +134,16 @@ test("AC-20 status reports the tag's release run passed and every channel served
   expect(report.version).toBe("1.0.1");
   expect(runsOf(report.runs)).toEqual([{ workflow: "release.yml", state: "passed", conclusion: null }]);
   expect(statesOf(report.channels)).toEqual(ALL_SERVED);
+
+  const redrafted = shippedRepo();
+  ghAnswers(redrafted.w, {
+    runs: { "release.yml": [PASSED] },
+    releases: [
+      { tagName: "v1.0.1", isDraft: true, assets: [] },
+      { tagName: "v1.0.1", isDraft: false, assets: ASSETS },
+    ],
+  });
+  expect(channelOf(result(status(redrafted)).channels, "github-release")).toMatchObject({ state: "served" });
 });
 
 test("AC-21 each channel not serving the version is missing or unreadable with the reason, exit 1", () => {

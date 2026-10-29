@@ -16,7 +16,16 @@ type Found =
   | { readonly state: "served" }
   | { readonly state: "missing" | "unreadable"; readonly detail: string };
 
-type Published = { readonly tag: string; readonly draft: boolean; readonly assets: readonly string[] };
+export type Release = {
+  readonly id: number;
+  readonly tag: string;
+  readonly draft: boolean;
+  readonly assets: readonly string[];
+};
+
+type Releases =
+  | { readonly ok: true; readonly releases: readonly Release[] }
+  | { readonly ok: false; readonly detail: string };
 
 export type Reach = {
   readonly gh: Gh;
@@ -33,7 +42,9 @@ const SERVED: Found = { state: "served" };
 
 const NOT_FOUND = 404;
 
-const RELEASES = ["api", "--paginate", "--slurp", "repos/{owner}/{repo}/releases"];
+const RELEASES_PATH = "repos/{owner}/{repo}/releases";
+
+const RELEASES = ["api", "--paginate", "--slurp", RELEASES_PATH];
 
 const RAW = ["-H", "Accept: application/vnd.github.raw+json"];
 
@@ -45,29 +56,48 @@ export function registryOf(configured: string | undefined): string {
   return (configured || NPM_REGISTRY).replace(TRAILING_SLASH, "");
 }
 
-function publishedOf(value: unknown): Published | null {
-  if (!isTable(value) || typeof value.tag_name !== "string" || typeof value.draft !== "boolean") return null;
+function releaseOf(value: unknown): Release | null {
+  if (!isTable(value) || typeof value.id !== "number") return null;
+  if (typeof value.tag_name !== "string" || typeof value.draft !== "boolean") return null;
   if (!Array.isArray(value.assets)) return null;
   const assets = value.assets.map((asset) => (isTable(asset) ? asset.name : null));
   if (!assets.every((name) => typeof name === "string")) return null;
-  return { tag: value.tag_name, draft: value.draft, assets };
+  return { id: value.id, tag: value.tag_name, draft: value.draft, assets };
 }
 
-function releasesOf(pages: unknown): readonly Published[] | null {
+function releasesOf(pages: unknown): readonly Release[] | null {
   if (!Array.isArray(pages) || !pages.every(Array.isArray)) return null;
-  const releases = pages.flat().map(publishedOf);
+  const releases = pages.flat().map(releaseOf);
   return releases.every((release) => release !== null) ? releases : null;
 }
 
-function releaseServes(reach: Reach, files: readonly string[]): Found {
-  const answer = ghJson(reach.gh, RELEASES);
-  if (!answer.ok) return { state: "unreadable", detail: answer.detail };
+export function readReleases(gh: Gh): Releases {
+  const answer = ghJson(gh, RELEASES);
+  if (!answer.ok) return answer;
   const releases = releasesOf(answer.json);
-  if (releases === null)
-    return { state: "unreadable", detail: `gh ${RELEASES.join(" ")} printed no list of releases` };
-  const release = releases.find(({ tag }) => tag === reach.tag);
-  if (release === undefined) return { state: "missing", detail: `${reach.tag} has no release` };
-  if (release.draft) return { state: "missing", detail: `${reach.tag}'s release is a draft` };
+  if (releases === null) return { ok: false, detail: `gh ${RELEASES.join(" ")} printed no list of releases` };
+  return { ok: true, releases };
+}
+
+export function publishedRelease(releases: readonly Release[], tag: string): Release | null {
+  return releases.find((release) => release.tag === tag && !release.draft) ?? null;
+}
+
+export function releaseDeletion(id: number): readonly string[] {
+  return ["api", "--method", "DELETE", `${RELEASES_PATH}/${id}`];
+}
+
+function releaseServes(reach: Reach, files: readonly string[]): Found {
+  const read = readReleases(reach.gh);
+  if (!read.ok) return { state: "unreadable", detail: read.detail };
+  const release = publishedRelease(read.releases, reach.tag);
+  if (release === null) {
+    const drafted = read.releases.some(({ tag }) => tag === reach.tag);
+    return {
+      state: "missing",
+      detail: drafted ? `${reach.tag}'s release is a draft` : `${reach.tag} has no release`,
+    };
+  }
   const absent = files.map((file) => basename(file)).filter((name) => !release.assets.includes(name));
   if (absent.length > 0)
     return { state: "missing", detail: `${reach.tag}'s release lacks ${absent.join(", ")}` };

@@ -16,6 +16,7 @@ jobs:
 
     defaults:
       run:
+        shell: bash
         working-directory: project
 
     outputs:
@@ -72,7 +73,9 @@ jobs:
           SECRET_NAMES: ${{ steps.masked.outputs.names }}
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-        run: bun "$GITHUB_WORKSPACE/agent-ship/scripts/release-plan.ts"
+        run: |
+          bun="$(mise which -C "$GITHUB_WORKSPACE/agent-ship" bun)"
+          "$bun" "$GITHUB_WORKSPACE/agent-ship/scripts/release-plan.ts"
 
   github-release:
     name: GitHub release
@@ -88,6 +91,7 @@ jobs:
 
     defaults:
       run:
+        shell: bash
         working-directory: project
 
     env:
@@ -115,6 +119,15 @@ jobs:
           SECRETS: ${{ toJSON(secrets) }}
           CREDENTIALS: ${{ needs.plan.outputs.github-release-credentials }}
         run: '"$GITHUB_WORKSPACE/agent-ship/scripts/release-secrets"'
+
+      - name: Set up agent-ship's toolchain
+        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          working_directory: agent-ship
+
+      - name: Install agent-ship's dependencies
+        working-directory: agent-ship
+        run: bun install --frozen-lockfile
 
       - name: Set up the project's toolchain
         uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
@@ -147,24 +160,8 @@ jobs:
         env:
           FILES: ${{ needs.plan.outputs.github-release-files }}
         run: |
-          mapfile -t files <<<"$FILES"
-          releases="$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
-            --jq '[.[] | select(.tag_name == env.TAG) | {id, draft, assets: [.assets[].name]}]' | jq -s 'add // []')"
-          published="$(jq -c 'map(select(.draft | not)) | first // empty' <<<"$releases")"
-          if [ -n "$published" ]; then
-            absent=()
-            for file in "${files[@]}"; do
-              jq -e --arg name "$(basename "$file")" '.assets | index($name)' <<<"$published" >/dev/null || absent+=("$file")
-            done
-            printf '%s is published; attaching the %s files it lacks\n' "$TAG" "${#absent[@]}"
-            [ "${#absent[@]}" -eq 0 ] || gh release upload "$TAG" "${absent[@]}"
-            exit 0
-          fi
-          for id in $(jq -r '.[] | select(.draft) | .id' <<<"$releases"); do
-            printf 'Deleting the draft release %s an earlier run left for %s\n' "$id" "$TAG"
-            gh api --method DELETE "repos/$GH_REPO/releases/$id"
-          done
-          gh release create "$TAG" --draft --verify-tag --title "$TAG" --generate-notes "${files[@]}"
+          bun="$(mise which -C "$GITHUB_WORKSPACE/agent-ship" bun)"
+          "$bun" "$GITHUB_WORKSPACE/agent-ship/scripts/release-files.ts"
 
       - name: Publish the release
         run: gh release edit "$TAG" --draft=false
@@ -182,6 +179,7 @@ jobs:
 
     defaults:
       run:
+        shell: bash
         working-directory: project
 
     env:
@@ -258,6 +256,10 @@ jobs:
     if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.homebrew == 'publish' && (needs.github-release.result == 'success' || needs.plan.outputs.github-release != 'publish') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
+
+    defaults:
+      run:
+        shell: bash
 
     steps:
       - name: Check out agent-ship

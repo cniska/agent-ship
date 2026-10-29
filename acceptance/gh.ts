@@ -70,7 +70,8 @@ function runs(): never {
 const RELEASES = "repos/{owner}/{repo}/releases";
 
 function releases(): never {
-  const page = (state().releases ?? []).map(({ tagName, isDraft, assets }) => ({
+  const page = (state().releases ?? []).map(({ tagName, isDraft, assets }, index) => ({
+    id: index + 1,
     tag_name: tagName,
     draft: isDraft,
     assets: assets.map((name) => ({ name })),
