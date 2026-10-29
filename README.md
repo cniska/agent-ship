@@ -15,15 +15,32 @@ agent-ship releases a project to its GitHub release, npm and a Homebrew tap from
 
 ## Install
 
-agent-ship has no release yet. Run it from a checkout, with [mise](https://mise.jdx.dev) installed:
+agent-ship ships builds for two platforms: `darwin-arm64`, macOS on Apple silicon, and `linux-x64`.
+
+With Homebrew:
 
 ```bash
-git clone https://github.com/cniska/agent-ship.git
-cd agent-ship
-mise trust && mise install
+brew install cniska/tap/agent-ship
 ```
 
-`mise install` puts `agent-ship` in `~/.bun/bin`, as [Development](docs/development.md) says.
+With npm, which installs the package for your platform and needs no Bun:
+
+```bash
+npm install --global @cniska/agent-ship
+```
+
+From a [GitHub release](https://github.com/cniska/agent-ship/releases), verify the tarball before you unpack it:
+
+```bash
+gh release download --repo cniska/agent-ship --pattern 'agent-ship-linux-x64.tar.gz' --pattern SHA256SUMS.txt
+shasum -a 256 --check --ignore-missing SHA256SUMS.txt
+gh attestation verify agent-ship-linux-x64.tar.gz --repo cniska/agent-ship
+tar -xzf agent-ship-linux-x64.tar.gz
+```
+
+Then put `agent-ship` on your `PATH`.
+
+To run it from a checkout with Bun, follow [Development](docs/development.md).
 
 ## Why
 

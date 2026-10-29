@@ -155,13 +155,17 @@ export function world(): World {
   };
 }
 
-export function run(w: World, cwd: string, args: readonly string[], env: Env = {}): Ran {
-  const ran = spawnSync(join(w.bin, "agent-ship"), [...args], {
+export function spawned(w: World, cwd: string, program: string, args: readonly string[], env: Env = {}): Ran {
+  const ran = spawnSync(program, [...args], {
     cwd,
     encoding: "utf8",
     env: { ...w.env, ...env },
   });
   return { exitCode: ran.status ?? -1, stdout: ran.stdout, stderr: ran.stderr };
+}
+
+export function run(w: World, cwd: string, args: readonly string[], env: Env = {}): Ran {
+  return spawned(w, cwd, join(w.bin, "agent-ship"), args, env);
 }
 
 function isShown(value: unknown): value is Shown {
@@ -217,13 +221,8 @@ export function git(w: World, cwd: string, args: readonly string[]): string {
   return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe", env: w.env }).trim();
 }
 
-export function runScript(w: World, cwd: string, entry: string, env: Env): Ran {
-  const ran = spawnSync(process.execPath, [join(SCRIPTS, entry)], {
-    cwd,
-    encoding: "utf8",
-    env: { ...w.env, ...env },
-  });
-  return { exitCode: ran.status ?? -1, stdout: ran.stdout, stderr: ran.stderr };
+export function runScript(w: World, cwd: string, entry: string, env: Env, args: readonly string[] = []): Ran {
+  return spawned(w, cwd, process.execPath, [join(SCRIPTS, entry), ...args], env);
 }
 
 export function write(dir: string, file: string, text: string): void {
