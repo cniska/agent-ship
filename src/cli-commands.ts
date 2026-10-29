@@ -115,7 +115,7 @@ const statusCommand: Command = {
 const doctorCommand: Command = {
   name: "doctor",
   usage: `${PROGRAM} doctor`,
-  summary: "name each credential the channels need, whether it is set, and the fix for each one missing",
+  summary: "check git, gh and each credential the channels need, with the fix for each that fails",
   run(args: readonly string[], runtime: Runtime): Outcome {
     const { positionals } = argumentsOf(this, args, NO_OPTIONS);
     atMost(this, positionals, 0);

@@ -26,7 +26,7 @@ describe("the cli", () => {
         '    check,"agent-ship check [<app>]","judge whether HEAD is ready to release, changing nothing"',
         '    release,"agent-ship release [<patch|minor|major|<version>>] [<app>] [--dry-run]","bump the version, commit and tag the release, and print the push command"',
         '    status,agent-ship status <tag>,"wait on the runs the tag started, then say whether each channel serves its version"',
-        '    doctor,agent-ship doctor,"name each credential the channels need, whether it is set, and the fix for each one missing"',
+        '    doctor,agent-ship doctor,"check git, gh and each credential the channels need, with the fix for each that fails"',
         "  flags[2]{name,usage,summary}:",
         '    "--help",agent-ship --help,list the commands and flags',
         '    "--version",agent-ship --version,print the version alone on one line',
