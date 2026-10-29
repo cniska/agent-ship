@@ -76,7 +76,7 @@ A project that ships to a GitHub release, npm and a Homebrew tap repeats the sam
 ### 2.8 The reusable workflow
 
 - **FR-41** — agent-ship's `.github/workflows/release.yml` runs when another workflow calls it, and when a `v*` tag is pushed to agent-ship itself, so agent-ship releases through it. A caller passes its secrets and grants the job that publishes to npm the permission to request an OIDC token, which [`docs/releasing.md`](docs/releasing.md) shows.
-- **FR-42** — On a tag that is not the release tag of the version source, the workflow refuses `tag_mismatch` and publishes nothing; with a credential a configured channel names missing, it refuses `missing_credential` and publishes nothing.
+- **FR-42** — The workflow refuses `tag_mismatch` on a tag that is not the version source's release tag, and `missing_credential` when a credential a configured channel names is missing. It refuses `package_not_tracked` when no tracked `package.json` names a package the `npm` channel names. A refused run publishes nothing.
 - **FR-43** — The `github-release` channel builds the files the channel names, attests the build provenance of each, creates the tag's release as a draft with every file attached, and publishes it only once every file is attached.
 - **FR-44** — The `npm` channel publishes each package the channel names with provenance, through npm's trusted publishing and with no npm token, then installs the published version from the registry and runs the channel's smoke command against it.
 - **FR-45** — The `homebrew` channel, once the tag's release is published, dispatches the tap named in the channel to repin its formula to the version.

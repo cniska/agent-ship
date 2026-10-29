@@ -1,7 +1,8 @@
 import { writeSync } from "node:fs";
 import { encode } from "@toon-format/toon";
-import type { ResultStatus } from "./cli-contract";
 import { EXIT_STATUS, recordOf } from "./coded-error";
+
+export type ResultStatus = 0 | 1;
 
 const STDOUT = 1;
 

@@ -25,6 +25,10 @@ export type Reach = {
   readonly version: Version;
 };
 
+const NPM_REGISTRY = "https://registry.npmjs.org";
+
+const TRAILING_SLASH = /\/+$/;
+
 const SERVED: Found = { state: "served" };
 
 const NOT_FOUND = 404;
@@ -36,6 +40,10 @@ const RAW = ["-H", "Accept: application/vnd.github.raw+json"];
 const FORMULA_URL = /^\s*url\s+"([^"]+)"/gm;
 
 const FORMULA_VERSION = /^\s*version\s+"([^"]+)"/m;
+
+export function registryOf(configured: string | undefined): string {
+  return (configured || NPM_REGISTRY).replace(TRAILING_SLASH, "");
+}
 
 function publishedOf(value: unknown): Published | null {
   if (!isTable(value) || typeof value.tag_name !== "string" || typeof value.draft !== "boolean") return null;

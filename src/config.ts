@@ -2,14 +2,14 @@ import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { unreachable } from "./assert";
 import { refusals } from "./coded-error";
-import { isTable, type Table } from "./table";
+import { isTable, parsedJson, type Table } from "./table";
 import { parseVersion, printVersion, type TagPattern, type Version } from "./version";
 
 const CONFIG_FILE = "ship.toml";
 
 type ChannelKind = "github-release" | "npm" | "homebrew";
 
-const CHANNEL_KINDS: readonly ChannelKind[] = ["github-release", "npm", "homebrew"];
+export const CHANNEL_KINDS: readonly ChannelKind[] = ["github-release", "npm", "homebrew"];
 
 export type Credential = { readonly name: string; readonly file: boolean };
 
@@ -26,6 +26,7 @@ export type Channel =
       readonly kind: "homebrew";
       readonly tap: string;
       readonly formula: string;
+      readonly token: string;
     });
 
 export type FloorLevel = "minor" | "major";
@@ -223,7 +224,8 @@ function channelOf(kind: ChannelKind, raw: unknown, scope: string): Channel {
         smoke: text(settings, "smoke", scope),
       };
     case "homebrew": {
-      if (named.length !== 1)
+      const [token, ...more] = named;
+      if (token === undefined || more.length > 0)
         invalid(
           keyOf(scope, CREDENTIALS),
           "must name exactly one variable, the token that dispatches the tap",
@@ -233,6 +235,7 @@ function channelOf(kind: ChannelKind, raw: unknown, scope: string): Channel {
         credentials,
         tap: text(settings, "tap", scope),
         formula: text(settings, "formula", scope),
+        token,
       };
     }
     default:
@@ -273,14 +276,6 @@ export function writeVersion(root: string, source: string, version: Version): vo
     INDENT.exec(recorded)?.[1] ?? "",
   );
   writeFileSync(path, recorded.endsWith("\n") ? `${written}\n` : written);
-}
-
-function parsedJson(source: string): unknown {
-  try {
-    return JSON.parse(source);
-  } catch {
-    return null;
-  }
 }
 
 function tagPatternOf(value: string, app: string | null, key: string): TagPattern {

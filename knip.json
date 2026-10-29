@@ -12,6 +12,7 @@
     "src/cli.ts",
     "acceptance/launch.ts",
     "acceptance/gh.ts",
-    "acceptance/clock.ts"
+    "acceptance/clock.ts",
+    "scripts/release-plan.ts"
   ]
 }

@@ -177,15 +177,13 @@ const VALID_SPEC = `
 const PROVEN = `test("AC-1 it does one thing", () => {});`;
 const VALID_TESTS = [PROVEN, `test("AC-2 it does another", () => {});`];
 
-const UNBUILT: ReadonlySet<string> = new Set(["AC-24", "AC-25", "AC-26"]);
-
 describe("the spec and the acceptance suite", () => {
-  test("agent-ship's spec and acceptance tests cite each other, each criterion not yet built listed", () => {
+  test("agent-ship's spec and acceptance tests cite each other, every criterion built", () => {
     const spec = readFileSync(join(ROOT, "SPEC.md"), "utf8");
     const sources = readdirSync(ACCEPTANCE)
       .filter((file) => file.endsWith(".acceptance.ts"))
       .map((file) => readFileSync(join(ACCEPTANCE, file), "utf8"));
-    expect(citationProblems(spec, sources, UNBUILT)).toEqual([]);
+    expect(citationProblems(spec, sources)).toEqual([]);
   });
 });
 

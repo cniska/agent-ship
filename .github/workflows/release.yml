@@ -1,0 +1,289 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  plan:
+    name: Plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: project
+
+    outputs:
+      version: ${{ steps.plan.outputs.version }}
+      github-release: ${{ steps.plan.outputs.github-release }}
+      github-release-build: ${{ steps.plan.outputs.github-release-build }}
+      github-release-files: ${{ steps.plan.outputs.github-release-files }}
+      github-release-credentials: ${{ steps.plan.outputs.github-release-credentials }}
+      npm: ${{ steps.plan.outputs.npm }}
+      npm-packages: ${{ steps.plan.outputs.npm-packages }}
+      npm-smoke: ${{ steps.plan.outputs.npm-smoke }}
+      npm-credentials: ${{ steps.plan.outputs.npm-credentials }}
+      homebrew: ${{ steps.plan.outputs.homebrew }}
+      homebrew-tap: ${{ steps.plan.outputs.homebrew-tap }}
+      homebrew-formula-name: ${{ steps.plan.outputs.homebrew-formula-name }}
+      homebrew-token: ${{ steps.plan.outputs.homebrew-token }}
+      homebrew-credentials: ${{ steps.plan.outputs.homebrew-credentials }}
+
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: project
+          persist-credentials: false
+
+      - name: Check out agent-ship
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: agent-ship
+          persist-credentials: false
+
+      - name: Mask credentials
+        id: masked
+        env:
+          SECRETS: ${{ toJSON(secrets) }}
+          CREDENTIALS: "[]"
+        run: '"$GITHUB_WORKSPACE/agent-ship/scripts/release-secrets"'
+
+      - name: Set up agent-ship's toolchain
+        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          working_directory: agent-ship
+
+      - name: Install agent-ship's dependencies
+        working-directory: agent-ship
+        run: bun install --frozen-lockfile
+
+      - name: Check the tag and the credentials
+        id: plan
+        env:
+          TAG: ${{ github.ref_name }}
+          SECRET_NAMES: ${{ steps.masked.outputs.names }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: bun "$GITHUB_WORKSPACE/agent-ship/scripts/release-plan.ts"
+
+  github-release:
+    name: GitHub release
+    needs: plan
+    if: needs.plan.outputs.github-release == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+
+    defaults:
+      run:
+        working-directory: project
+
+    env:
+      TAG: ${{ github.ref_name }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: project
+          persist-credentials: false
+
+      - name: Check out agent-ship
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: agent-ship
+          persist-credentials: false
+
+      - name: Mask credentials
+        env:
+          SECRETS: ${{ toJSON(secrets) }}
+          CREDENTIALS: ${{ needs.plan.outputs.github-release-credentials }}
+        run: '"$GITHUB_WORKSPACE/agent-ship/scripts/release-secrets"'
+
+      - name: Set up the project's toolchain
+        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          working_directory: project
+
+      - name: Build the files
+        id: build
+        env:
+          BUILD: ${{ needs.plan.outputs.github-release-build }}
+          FILES: ${{ needs.plan.outputs.github-release-files }}
+        run: |
+          /bin/sh -c "$BUILD"
+          delimiter="FILES_$(od -An -tx1 -N16 /dev/urandom | tr -d ' \n')"
+          {
+            printf 'subjects<<%s\n' "$delimiter"
+            while IFS= read -r file; do
+              [ -f "$file" ] || { printf '::error::the build made no %s\n' "$file" >&2; exit 1; }
+              printf '%s/%s\n' "$PWD" "$file"
+            done <<<"$FILES"
+            printf '%s\n' "$delimiter"
+          } >>"$GITHUB_OUTPUT"
+
+      - name: Attest the build provenance of every file
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: ${{ steps.build.outputs.subjects }}
+
+      - name: Create the release as a draft with every file, or attach the absent ones to the published one
+        env:
+          FILES: ${{ needs.plan.outputs.github-release-files }}
+        run: |
+          mapfile -t files <<<"$FILES"
+          releases="$(gh api --paginate "repos/$GH_REPO/releases?per_page=100" \
+            --jq '[.[] | select(.tag_name == env.TAG) | {id, draft, assets: [.assets[].name]}]' | jq -s 'add // []')"
+          published="$(jq -c 'map(select(.draft | not)) | first // empty' <<<"$releases")"
+          if [ -n "$published" ]; then
+            absent=()
+            for file in "${files[@]}"; do
+              jq -e --arg name "$(basename "$file")" '.assets | index($name)' <<<"$published" >/dev/null || absent+=("$file")
+            done
+            printf '%s is published; attaching the %s files it lacks\n' "$TAG" "${#absent[@]}"
+            [ "${#absent[@]}" -eq 0 ] || gh release upload "$TAG" "${absent[@]}"
+            exit 0
+          fi
+          for id in $(jq -r '.[] | select(.draft) | .id' <<<"$releases"); do
+            printf 'Deleting the draft release %s an earlier run left for %s\n' "$id" "$TAG"
+            gh api --method DELETE "repos/$GH_REPO/releases/$id"
+          done
+          gh release create "$TAG" --draft --verify-tag --title "$TAG" --generate-notes "${files[@]}"
+
+      - name: Publish the release
+        run: gh release edit "$TAG" --draft=false
+
+  npm:
+    name: npm
+    needs: plan
+    if: needs.plan.outputs.npm == 'publish'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+      id-token: write
+
+    defaults:
+      run:
+        working-directory: project
+
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+      PACKAGES: ${{ needs.plan.outputs.npm-packages }}
+
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: project
+          persist-credentials: false
+
+      - name: Check out agent-ship
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: agent-ship
+          persist-credentials: false
+
+      - name: Mask credentials
+        env:
+          SECRETS: ${{ toJSON(secrets) }}
+          CREDENTIALS: ${{ needs.plan.outputs.npm-credentials }}
+        run: '"$GITHUB_WORKSPACE/agent-ship/scripts/release-secrets"'
+
+      - name: Set up the project's toolchain
+        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          working_directory: project
+
+      - name: Set up Node
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      - name: Publish each package with provenance
+        run: |
+          while read -r name dir; do
+            if npm view "$name@$VERSION" version >/dev/null 2>&1; then
+              printf '%s@%s is already on the registry\n' "$name" "$VERSION"
+              continue
+            fi
+            npm publish "./$dir" --access public --provenance
+          done <<<"$PACKAGES"
+
+      - name: Wait for the registry to serve each package
+        run: |
+          while read -r name _; do
+            attempt=0
+            until npm view "$name@$VERSION" version >/dev/null 2>&1; do
+              attempt=$((attempt + 1))
+              [ "$attempt" -lt 30 ] || { printf '::error::%s@%s is not on the registry\n' "$name" "$VERSION"; exit 1; }
+              sleep 10
+            done
+          done <<<"$PACKAGES"
+
+      - name: Install the version from the registry
+        run: |
+          while read -r name _; do
+            npm install --global "$name@$VERSION"
+          done <<<"$PACKAGES"
+
+      - name: Run the smoke command against the installed version
+        working-directory: ${{ runner.temp }}
+        env:
+          SMOKE: ${{ needs.plan.outputs.npm-smoke }}
+        run: /bin/sh -c "$SMOKE"
+
+  homebrew:
+    name: Homebrew
+    needs: [plan, github-release]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.homebrew == 'publish' && (needs.github-release.result == 'success' || needs.plan.outputs.github-release != 'publish') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Check out agent-ship
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: agent-ship
+          persist-credentials: false
+
+      - name: Mask credentials
+        env:
+          SECRETS: ${{ toJSON(secrets) }}
+          CREDENTIALS: ${{ needs.plan.outputs.homebrew-credentials }}
+        run: '"$GITHUB_WORKSPACE/agent-ship/scripts/release-secrets"'
+
+      - name: Dispatch the tap to repin the formula
+        env:
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.plan.outputs.version }}
+          TAP: ${{ needs.plan.outputs.homebrew-tap }}
+          FORMULA: ${{ needs.plan.outputs.homebrew-formula-name }}
+          TOKEN_NAME: ${{ needs.plan.outputs.homebrew-token }}
+        run: |
+          GH_TOKEN="${!TOKEN_NAME}" gh api --method POST "repos/$TAP/dispatches" \
+            -f event_type=formula-release \
+            -f "client_payload[formula]=$FORMULA" \
+            -f "client_payload[ref]=$TAG" \
+            -f "client_payload[version]=$VERSION"

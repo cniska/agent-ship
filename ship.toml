@@ -1,0 +1,18 @@
+version = "package.json"
+tag = "v<version>"
+branch = "main"
+check = "bun run check"
+signed = false
+
+[channels.github-release]
+build = "scripts/build"
+files = ["dist/agent-ship-darwin-arm64.tar.gz", "dist/agent-ship-linux-x64.tar.gz", "dist/SHA256SUMS.txt"]
+
+[channels.npm]
+packages = ["@cniska/agent-ship"]
+smoke = "agent-ship --version"
+
+[channels.homebrew]
+tap = "cniska/homebrew-tap"
+formula = "Formula/agent-ship.rb"
+credentials = ["TAP_DISPATCH_TOKEN"]

@@ -1,8 +1,9 @@
 #!/usr/bin/env bun
 import { version } from "../package.json";
+import { registryOf } from "./channels";
 import { COMMANDS } from "./cli-commands";
 import { type Command, type Outcome, PROGRAM, type Runtime, usageError } from "./cli-contract";
-import { exitWithError, exitWithResult, exitWithVersion } from "./cli-output";
+import { exitWithError, exitWithResult, exitWithVersion } from "./output";
 
 const HELP_FLAG = "--help";
 
@@ -13,14 +14,10 @@ const FLAGS = [
   { name: VERSION_FLAG, usage: `${PROGRAM} ${VERSION_FLAG}`, summary: "print the version alone on one line" },
 ];
 
-const NPM_REGISTRY = "https://registry.npmjs.org";
-
-const TRAILING_SLASH = /\/+$/;
-
 const runtime: Runtime = {
   cwd: process.cwd(),
   processEnv: process.env,
-  registry: (process.env.npm_config_registry || NPM_REGISTRY).replace(TRAILING_SLASH, ""),
+  registry: registryOf(process.env.npm_config_registry),
   clock: { now: () => Date.now(), sleep: (ms) => Bun.sleepSync(ms) },
 };
 
