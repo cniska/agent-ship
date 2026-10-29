@@ -1,33 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-TARGETS=(darwin-arm64 linux-x64)
-
 die() {
   printf 'build: %s\n' "$1" >&2
   exit 1
 }
 
-build_target() {
-  local root="$1" target="$2" staging
-  staging="$root/dist/$target"
-  mkdir -p "$staging"
-  bun build --compile --target "bun-$target" "$root/src/cli.ts" --outfile "$staging/agent-ship" >/dev/null
-  tar -czf "$root/dist/agent-ship-$target.tar.gz" -C "$staging" agent-ship
-  rm -rf "$staging"
+host_target() {
+  case "$(uname -s)-$(uname -m)" in
+    Darwin-arm64) printf 'darwin-arm64\n' ;;
+    Linux-x86_64) printf 'linux-x64\n' ;;
+    *) die "agent-ship ships no build for $(uname -s)-$(uname -m)" ;;
+  esac
 }
 
 main() {
-  local root target
+  local root target host version staging
   root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  target="${TARGET:-}"
+  [ -n "$target" ] || die "TARGET is not set; name the target to build, such as TARGET=linux-x64"
+  host="$(host_target)"
+  [ "$target" = "$host" ] || die "TARGET is $target, but this machine is $host, so the build could not be smoke-tested here"
   bun --version >/dev/null || die "bun could not run"
   (cd "$root" && bun install --frozen-lockfile >/dev/null)
+  version="$(cd "$root" && bun -e 'console.log(require("./package.json").version)')"
+  staging="$root/dist/$target"
   rm -rf "$root/dist"
-  mkdir -p "$root/dist"
-  for target in "${TARGETS[@]}"; do
-    build_target "$root" "$target"
-  done
-  (cd "$root/dist" && shasum -a 256 -- agent-ship-*.tar.gz >SHA256SUMS.txt)
+  mkdir -p "$staging"
+  bun build --compile --target "bun-$target" "$root/src/cli.ts" --outfile "$staging/agent-ship" >/dev/null
+  [ "$("$staging/agent-ship" --version)" = "$version" ] || die "the $target build does not print the version $version"
+  tar -czf "$root/dist/agent-ship-$target.tar.gz" -C "$staging" agent-ship
+  rm -rf "$staging"
 }
 
 main "$@"

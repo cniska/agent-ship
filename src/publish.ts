@@ -3,7 +3,7 @@ import { publishedRelease, type Release, readReleases, releaseDeletion } from ".
 import { faults } from "./coded-error";
 import type { ProcessEnv } from "./exec";
 import { type Gh, ghText } from "./gh";
-import { requiredInput } from "./inputs";
+import { filesInput, requiredInput } from "./inputs";
 
 type GhCall = readonly string[];
 
@@ -26,9 +26,7 @@ const fault = faults<{
 export function publishInputs(env: ProcessEnv): PublishInputs {
   return {
     tag: requiredInput(env, "TAG"),
-    files: requiredInput(env, "FILES")
-      .split("\n")
-      .filter((file) => file !== ""),
+    files: filesInput(env),
   };
 }
 

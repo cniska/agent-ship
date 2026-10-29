@@ -16,6 +16,7 @@
     "acceptance/clock.ts",
     "scripts/release-plan.ts",
     "scripts/release-files.ts",
+    "scripts/target-files.ts",
     "scripts/npm-packages.ts",
     "scripts/build-npm.ts"
   ]

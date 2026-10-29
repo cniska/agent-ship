@@ -25,6 +25,7 @@ export type Channel =
   | (ChannelBase & {
       readonly kind: "github-release";
       readonly build: string;
+      readonly assemble: string | null;
       readonly files: readonly string[];
     })
   | (ChannelBase & {
@@ -100,7 +101,7 @@ const CREDENTIALS = "credentials";
 const FILE_CREDENTIALS = "file-credentials";
 
 const CHANNEL_KEYS: Readonly<Record<ChannelKind, readonly string[]>> = {
-  "github-release": ["build", "files", CREDENTIALS, FILE_CREDENTIALS],
+  "github-release": ["build", "assemble", "files", CREDENTIALS, FILE_CREDENTIALS],
   npm: ["packages", "build", "out", "smoke", CREDENTIALS, FILE_CREDENTIALS],
   homebrew: ["tap", "formula", CREDENTIALS],
 };
@@ -243,6 +244,7 @@ function channelOf(kind: ChannelKind, raw: unknown, scope: string): Channel {
         kind,
         credentials,
         build: text(settings, "build", scope),
+        assemble: settings.assemble === undefined ? null : text(settings, "assemble", scope),
         files: requiredTexts(settings, "files", scope),
       };
     case "npm":

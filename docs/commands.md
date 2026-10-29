@@ -134,7 +134,9 @@ credentials = ["TAP_DISPATCH_TOKEN"]
 | `channels.<kind>` | One table per channel: `github-release`, `npm` or `homebrew` |
 | `channels.<kind>.credentials` | The names of the variables holding the credentials the channel reads |
 | `channels.<kind>.file-credentials` | The names of variables whose values are paths to credential files |
-| `channels.github-release.build`, `.files` | The command that builds the release files, and the files it attaches |
+| `channels.github-release.build` | The command that builds one target's release files and smoke-tests them, run once per target with `TARGET` set, as [Targets](releasing.md#targets) says |
+| `channels.github-release.files` | The files the release attaches |
+| `channels.github-release.assemble` | Optional: the command run once after every target's build, making the files that span targets |
 | `channels.npm.packages`, `.smoke` | The packages it publishes, in that order, and the command run against the installed version |
 | `channels.npm.build`, `.out` | Optional, given together: the command that builds the packages, and the directory, inside the checkout, it writes them under; without them, each package is a tracked `package.json` |
 | `channels.homebrew.tap`, `.formula` | The tap repository dispatched to repin, and its formula |

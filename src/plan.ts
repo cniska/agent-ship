@@ -16,7 +16,12 @@ type Stage = "publish" | "served";
 type Planned = { readonly stage: Stage; readonly credentials: readonly string[] };
 
 type ChannelPlan =
-  | (Planned & { readonly kind: "github-release"; readonly build: string; readonly files: readonly string[] })
+  | (Planned & {
+      readonly kind: "github-release";
+      readonly build: string;
+      readonly assemble: string | null;
+      readonly files: readonly string[];
+    })
   | (Planned & { readonly kind: "npm"; readonly build: string | null; readonly smoke: string })
   | (Planned & {
       readonly kind: "homebrew";
@@ -105,7 +110,14 @@ function channelPlan(channel: Channel, stage: Stage): ChannelPlan {
   const credentials = channel.credentials.map(({ name }) => name);
   switch (channel.kind) {
     case "github-release":
-      return { kind: channel.kind, stage, credentials, build: channel.build, files: channel.files };
+      return {
+        kind: channel.kind,
+        stage,
+        credentials,
+        build: channel.build,
+        assemble: channel.assemble,
+        files: channel.files,
+      };
     case "npm":
       return {
         kind: channel.kind,
@@ -150,7 +162,12 @@ function channelOutputs(plan: ChannelPlan): Readonly<Record<string, string>> {
   const shared = { [key]: plan.stage, [`${key}-credentials`]: JSON.stringify(plan.credentials) };
   switch (plan.kind) {
     case "github-release":
-      return { ...shared, [`${key}-build`]: plan.build, [`${key}-files`]: plan.files.join("\n") };
+      return {
+        ...shared,
+        [`${key}-build`]: plan.build,
+        [`${key}-assemble`]: plan.assemble ?? "",
+        [`${key}-files`]: plan.files.join("\n"),
+      };
     case "npm":
       return {
         ...shared,

@@ -202,6 +202,7 @@ describe("the plan's outputs", () => {
         stage: "served",
         credentials: [],
         build: "scripts/build",
+        assemble: "scripts/sums",
         files: ["dist/a.tar.gz", "dist/b.tar.gz"],
       },
       {
@@ -222,6 +223,7 @@ describe("the plan's outputs", () => {
       "github-release": "served",
       "github-release-credentials": "[]",
       "github-release-build": "scripts/build",
+      "github-release-assemble": "scripts/sums",
       "github-release-files": "dist/a.tar.gz\ndist/b.tar.gz",
       npm: "absent",
       homebrew: "publish",
@@ -229,6 +231,14 @@ describe("the plan's outputs", () => {
       "homebrew-tap": "owner/homebrew-tap",
       "homebrew-formula-name": "app",
       "homebrew-token": "TAP_DISPATCH_TOKEN",
+    });
+  });
+
+  test("give the github-release channel an empty assemble when it names none", () => {
+    const [release, ...rest] = plan.channels;
+    if (release?.kind !== "github-release") throw new Error("the plan has no github-release channel");
+    expect(outputsOf({ ...plan, channels: [{ ...release, assemble: null }, ...rest] })).toMatchObject({
+      "github-release-assemble": "",
     });
   });
 

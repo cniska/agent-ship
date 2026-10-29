@@ -6,6 +6,7 @@ signed = false
 
 [channels.github-release]
 build = "scripts/build"
+assemble = "cd dist && shasum -a 256 -- agent-ship-*.tar.gz >SHA256SUMS.txt"
 files = ["dist/agent-ship-darwin-arm64.tar.gz", "dist/agent-ship-linux-x64.tar.gz", "dist/SHA256SUMS.txt"]
 
 [channels.npm]

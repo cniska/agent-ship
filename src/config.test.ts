@@ -64,3 +64,30 @@ describe("the npm channel's source", () => {
     }
   });
 });
+
+const RELEASE = `
+[channels.github-release]
+build = "scripts/build"
+files = ["dist/app.tar.gz"]
+`;
+
+function assembleOf(extra: string) {
+  const config = configWith(`${RELEASE}${extra}`);
+  const channel = config.kind === "single" ? config.app.channels[1] : undefined;
+  return channel?.kind === "github-release" ? channel.assemble : "no github-release channel";
+}
+
+describe("the github-release channel's assemble", () => {
+  test("is the command it names, or null when it names none", () => {
+    expect(assembleOf('assemble = "scripts/sums"\n')).toBe("scripts/sums");
+    expect(assembleOf("")).toBeNull();
+  });
+
+  test("is refused when empty", () => {
+    const error = invalidKey(`${RELEASE}assemble = ""\n`);
+    expect([error.code, error.message.startsWith("ship.toml: channels.github-release.assemble ")]).toEqual([
+      "config_invalid",
+      true,
+    ]);
+  });
+});

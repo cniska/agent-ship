@@ -20,6 +20,8 @@ const LAUNCH = join(import.meta.dir, "launch.ts");
 
 const GH = join(import.meta.dir, "gh.ts");
 
+const SCRIPTS = join(import.meta.dir, "..", "scripts");
+
 const PROGRAMS = ["git", "ssh-keygen"];
 
 const LINUX = "linux";
@@ -213,6 +215,15 @@ export function usageCodeOf(ran: Ran): unknown {
 
 export function git(w: World, cwd: string, args: readonly string[]): string {
   return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", stdio: "pipe", env: w.env }).trim();
+}
+
+export function runScript(w: World, cwd: string, entry: string, env: Env): Ran {
+  const ran = spawnSync(process.execPath, [join(SCRIPTS, entry)], {
+    cwd,
+    encoding: "utf8",
+    env: { ...w.env, ...env },
+  });
+  return { exitCode: ran.status ?? -1, stdout: ran.stdout, stderr: ran.stderr };
 }
 
 export function write(dir: string, file: string, text: string): void {

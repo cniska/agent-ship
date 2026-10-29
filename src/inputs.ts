@@ -19,3 +19,9 @@ export function requiredInput(env: ProcessEnv, variable: string): string {
   if (value === undefined || value === "") throw invalidInput(variable, "is not set");
   return value;
 }
+
+export function filesInput(env: ProcessEnv): readonly string[] {
+  return requiredInput(env, "FILES")
+    .split("\n")
+    .filter((file) => file !== "");
+}

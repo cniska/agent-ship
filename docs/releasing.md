@@ -9,7 +9,8 @@ How a project releases through agent-ship's reusable workflow, and how agent-shi
 | Job | Does |
 | --- | --- |
 | Plan | Refuses `tag_mismatch` or `missing_credential`, and, for an npm channel with no `build`, `package_not_tracked`, `package_version_mismatch` or `package_order`, before anything is built or published; decides each channel's stage |
-| GitHub release | Runs the channel's `build`, attests the build provenance of each file, creates the tag's release as a draft with every file, then publishes it in a later step |
+| GitHub release build | Runs the channel's `build` once per target, each on that target's own runner, and keeps the files each one made |
+| GitHub release | Puts each target's files at their paths, runs `assemble` when the channel names one, attests the build provenance of each file, creates the tag's release as a draft with every file, then publishes it in a later step |
 | npm | Builds the packages when the channel has a `build`, publishes each in the listed order with provenance through npm's trusted publishing and no npm token, waits until the registry serves each, then installs the version and runs `smoke` |
 | Homebrew | Once the release is published, or when no release needs publishing, dispatches the tap to repin the formula |
 
@@ -28,6 +29,19 @@ The plan gives each channel kind one stage:
 A rerun on the same tag publishes nothing twice. The release job attaches to an already published release only the files it lacks, and deletes a draft an earlier run left. The npm job skips each package the registry already serves.
 
 Two runs of one tag never publish at once. The workflow holds the concurrency group `agent-ship-release-<repository>-<ref>` and never cancels a run in progress. A called workflow sees the caller's `github` context, so a caller group of the same name would make the called workflow wait on its own caller. The caller in [Calling it](#calling-it) names its group `release-<ref>`.
+
+### Targets
+
+Every release builds two targets, each on a runner of its own platform:
+
+| Target | Runner |
+| --- | --- |
+| `darwin-arm64` | `macos-latest` |
+| `linux-x64` | `ubuntu-latest` |
+
+The `github-release` channel's `build` runs once per target, with `TARGET` set to it. It builds that target's files and smoke-tests them there, so a build that runs only on its own platform is proven before release. Each run keeps the files in `files` that it made, and fails when it made none.
+
+The release job then puts each target's files at their paths. Two targets may make the same file only with the same bytes; otherwise the job refuses `target_files_conflict`. `assemble`, when the channel names it, then runs once on Linux and makes the files that span targets, such as checksums. Every file in `files` must exist after it.
 
 ### What a channel needs
 
@@ -76,7 +90,7 @@ A tag that published nothing can be deleted and made again once the fix is on th
 
 agent-ship's `ship.toml` names three channels:
 
-- **`github-release`**: `scripts/build` compiles `agent-ship` for `darwin-arm64` and `linux-x64` into tarballs in `dist/`, with their `SHA256SUMS.txt`.
+- **`github-release`**: `scripts/build` compiles `agent-ship` for `TARGET`, checks that the binary prints the version, and packs it into a tarball in `dist/`. It refuses a `TARGET` other than the machine it runs on. `assemble` writes `SHA256SUMS.txt` over the tarballs.
 - **`npm`**: `scripts/build-npm.ts` builds three packages under `dist/npm` from the release's tarballs:
   - `@cniska/agent-ship-darwin-arm64` and `@cniska/agent-ship-linux-x64` each hold that platform's binary and install only on it.
   - `@cniska/agent-ship` holds only the launcher `npm/agent-ship` and names both as optional dependencies at its version. The launcher is a POSIX `sh` script that runs the binary of the platform package installed beside it, so an npm install needs no Bun.

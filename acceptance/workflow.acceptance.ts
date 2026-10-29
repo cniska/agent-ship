@@ -74,7 +74,7 @@ test("AC-25 the tag and credential check precedes every build and publish, and e
     expect(needsOf(name)).toContain("plan");
     expect(textAt(tableAt(jobs, name), "if")).toContain(`needs.plan.outputs.${name} == 'publish'`);
   }
-  for (const name of ["plan", ...PUBLISHING_JOBS]) {
+  for (const name of ["plan", "github-release-targets", ...PUBLISHING_JOBS]) {
     const steps = stepsOf(name);
     const mask = index(steps, running(MASK), `masking in ${name}`);
     const readers = steps.flatMap((step, at) => (READS_SECRETS.test(JSON.stringify(step)) ? [at] : []));
@@ -85,15 +85,40 @@ test("AC-25 the tag and credential check precedes every build and publish, and e
   }
 });
 
-test("AC-26 the release is a draft after every file's attestation and published later, npm publishes with provenance and no token then installs and smokes, the tap waits on the published release, and a served channel is skipped", () => {
+test("AC-26 each target builds on its own runner, the release is a draft after every file's attestation and published later, npm publishes with provenance and no token then installs and smokes, the tap waits on the published release, and a served channel is skipped", () => {
+  const targets = tableAt(jobs, "github-release-targets");
+  expect(tableAt(tableAt(targets, "strategy"), "matrix").include).toEqual([
+    { target: "darwin-arm64", runner: "macos-latest" },
+    { target: "linux-x64", runner: "ubuntu-latest" },
+  ]);
+  expect(targets["runs-on"]).toBe("${{ matrix.runner }}");
+  const built = stepsOf("github-release-targets");
+  const build = index(built, running('"$BUILD"'), "building a target");
+  expect(tableAt(built[build], "env").TARGET).toBe("${{ matrix.target }}");
+  const kept = index(built, (step) => textAt(step, "uses").startsWith("actions/upload-artifact@"), "keeping");
+  expect(build < kept).toBe(true);
+
   const release = stepsOf("github-release");
-  const build = index(release, running('"$BUILD"'), "building");
-  expect(textAt(release[build], "run")).toContain('[ -f "$file" ]');
+  expect(needsOf("github-release")).toContain("github-release-targets");
+  const fetched = index(
+    release,
+    (step) => textAt(step, "uses").startsWith("actions/download-artifact@"),
+    "fetching",
+  );
+  const merged = index(
+    release,
+    running("scripts/target-files.ts"),
+    "putting each target's files at their paths",
+  );
+  const assembled = index(release, running('"$ASSEMBLE"'), "assembling");
+  expect(textAt(release[assembled], "if")).toBe("needs.plan.outputs.github-release-assemble != ''");
+  const checked = index(release, running('[ -f "$file" ]'), "checking every file is made");
   const attest = index(release, (step) => textAt(step, "uses").startsWith("actions/attest@"), "attesting");
-  expect(tableAt(release[attest], "with")["subject-path"]).toBe("${{ steps.build.outputs.subjects }}");
+  expect(tableAt(release[attest], "with")["subject-path"]).toBe("${{ steps.files.outputs.subjects }}");
   const draft = index(release, running("scripts/release-files.ts"), "drafting");
   const publish = index(release, running("--draft=false"), "publishing the release");
-  expect(build < attest && attest < draft && draft < publish).toBe(true);
+  const steps = [fetched, merged, assembled, checked, attest, draft, publish];
+  expect(steps.toSorted((a, b) => a - b)).toEqual(steps);
 
   const npm = stepsOf("npm");
   const environments = [workflow, tableAt(jobs, "npm"), ...npm].map((holder) =>
