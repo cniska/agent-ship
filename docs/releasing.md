@@ -4,11 +4,11 @@ How a project releases through agent-ship's reusable workflow, and how agent-shi
 
 ## The reusable workflow
 
-`.github/workflows/release.yml` runs when another workflow calls it, and when a `v*` tag is pushed to agent-ship itself. It checks out the caller's repository at the tag, and agent-ship at the commit of the workflow it runs.
+`.github/workflows/release.yml` runs when another workflow calls it, and when a `v*` tag is pushed to agent-ship itself. It checks out the caller's repository at the ref it runs on, and agent-ship at the commit of the workflow it runs. A dispatched run is a [dry run](#dry-run).
 
 | Job | Does |
 | --- | --- |
-| Plan | Refuses `tag_mismatch` or `missing_credential`, and, for an npm channel with no `build`, `package_not_tracked`, `package_version_mismatch` or `package_order`, before anything is built or published; decides each channel's stage |
+| Plan | Refuses `tag_mismatch`, or `dry_run_app_invalid` in a dry run, then `missing_credential`, and, for an npm channel with no `build`, `package_not_tracked`, `package_version_mismatch` or `package_order`, before anything is built or published; decides each channel's stage |
 | GitHub release build | Runs the channel's `build` once per target, each on that target's own runner, and keeps the files each one made |
 | GitHub release | Puts each target's files at their paths, runs `assemble` when the channel names one, attests the build provenance of each file, creates the tag's release as a draft with every file, then publishes it in a later step |
 | npm | Builds the packages when the channel has a `build`, publishes each in the listed order with provenance through npm's trusted publishing and no npm token, and waits until the registry serves each |
@@ -24,6 +24,7 @@ The plan gives each channel kind one stage:
 - **`publish`** when the channel does not serve the version, as [Status](commands.md#status) defines served, or when the plan cannot read it.
 - **`served`** when it does; its job is skipped.
 - **`absent`** when `ship.toml` names no such channel.
+- **`dry-run`** for every channel `ship.toml` names, in a dry run.
 
 ### Reruns and concurrent runs
 
@@ -44,6 +45,14 @@ The `github-release` channel's `build` runs once per target, with `TARGET` set t
 
 The release job then puts each target's files at their paths. Two targets may make the same file only with the same bytes; otherwise the job refuses `target_files_conflict`. `assemble`, when the channel names it, then runs once on Linux and makes the files that span targets, such as checksums. Every file in `files` must exist after it.
 
+### Dry run
+
+A run whose event is `workflow_dispatch` is a dry run, whatever ref it runs on, a tag included. When called, that is the caller's event. Every other run releases the tag it runs on.
+
+A dry run takes the app the `app` input names, or the only app when `ship.toml` has none. It refuses `dry_run_app_invalid` when a repository with apps gets no app or an unknown one, or a repository without apps gets one. It plans the app's recorded version and that version's tag, checks the credentials and tracked packages as a release does, and reads no channel.
+
+Then it runs each target's build and `assemble`, and checks every file. With an npm `build`, the npm job builds the packages from those files and runs `npm pack --dry-run` on each. It attests, drafts and publishes no release, publishes and smokes no package, and dispatches no tap.
+
 ### What a channel needs
 
 - **Credentials.** The plan finds a credential among the secrets the caller passes, by its exact name. A file credential is checked only as set; the workflow does not write it to a file.
@@ -63,6 +72,11 @@ name: Release
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      app:
+        type: string
+        default: ""
 
 concurrency:
   group: release-${{ github.ref }}
@@ -71,6 +85,8 @@ concurrency:
 jobs:
   release:
     uses: cniska/agent-ship/.github/workflows/release.yml@<sha> # vX.Y.Z
+    with:
+      app: ${{ inputs.app }}
     permissions:
       contents: write
       id-token: write
@@ -79,6 +95,8 @@ jobs:
 ```
 
 `gh api repos/cniska/agent-ship/commits/vX.Y.Z -q .sha` prints the commit sha of a release tag. A repository of several apps triggers on each app's tag pattern, such as `cli-v*`.
+
+The caller's `workflow_dispatch` trigger starts a [dry run](#dry-run): `gh workflow run release.yml --ref main` dry-runs the commit at `main`, and `-f app=cli` names the app in a repository with apps.
 
 ## Each release
 
@@ -97,6 +115,7 @@ agent-ship's `ship.toml` names three channels:
   - `@cniska/agent-ship-darwin-arm64` and `@cniska/agent-ship-linux-x64` each hold that platform's binary and install only on it.
   - `@cniska/agent-ship` holds only the launcher `npm/agent-ship` and names both as optional dependencies at its version. The launcher is a POSIX `sh` script that runs the binary of the platform package installed beside it, so an npm install needs no Bun.
   - The launcher's refusals are in the [errors table](commands.md#errors).
+  - The smoke checks that `agent-ship --version` prints the version under release, with no Node on `PATH`.
 - **`homebrew`**: `Formula/agent-ship.rb` in `cniska/homebrew-tap`, dispatched with `TAP_DISPATCH_TOKEN`.
 
 ## The owner's setup, once

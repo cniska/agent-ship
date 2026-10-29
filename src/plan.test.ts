@@ -60,6 +60,7 @@ function project(): string {
 
 function inputs(tag: string, secrets: readonly string[]) {
   return planInputs({
+    EVENT: "push",
     TAG: tag,
     SECRET_NAMES: JSON.stringify(secrets),
     GITHUB_OUTPUT: "/dev/null",
@@ -178,10 +179,15 @@ describe("the release plan", () => {
 
   test("refuses inputs the workflow did not set", () => {
     const cases = [
-      { env: {}, variable: "TAG", problem: "is not set" },
-      { env: { TAG: "v1", SECRET_NAMES: "[]" }, variable: "GITHUB_OUTPUT", problem: "is not set" },
+      { env: {}, variable: "EVENT", problem: "is not set" },
+      { env: { EVENT: "push" }, variable: "TAG", problem: "is not set" },
       {
-        env: { TAG: "v1", SECRET_NAMES: "[1]", GITHUB_OUTPUT: "/dev/null" },
+        env: { EVENT: "push", TAG: "v1", SECRET_NAMES: "[]" },
+        variable: "GITHUB_OUTPUT",
+        problem: "is not set",
+      },
+      {
+        env: { EVENT: "push", TAG: "v1", SECRET_NAMES: "[1]", GITHUB_OUTPUT: "/dev/null" },
         variable: "SECRET_NAMES",
         problem: "is not a JSON list of names",
       },
@@ -191,6 +197,73 @@ describe("the release plan", () => {
       expect(record.code).toBe("workflow_input_invalid");
       expect(record.meta).toEqual({ variable, problem });
     }
+  });
+});
+
+function dryRunInputs(app: string | undefined, secrets: readonly string[]) {
+  return planInputs({
+    EVENT: "workflow_dispatch",
+    TAG: "main",
+    ...(app === undefined ? {} : { APP: app }),
+    SECRET_NAMES: JSON.stringify(secrets),
+    GITHUB_OUTPUT: "/dev/null",
+    npm_config_registry: registry.url.href,
+  });
+}
+
+async function dryRunRefusal(dir: string, app: string | undefined, secrets: readonly string[]) {
+  try {
+    await planRelease(openCheckout(dir, process.env), dryRunInputs(app, secrets));
+  } catch (error) {
+    return recordOf(error);
+  }
+  throw new Error("the dry run was not refused");
+}
+
+describe("the dry run's plan", () => {
+  test("is taken on a dispatch, whatever its ref, and gives each channel the stage dry-run with the version's tag, reading no registry", async () => {
+    served.add("@scope/app");
+    served.add("@scope/lib");
+    for (const app of [undefined, ""]) {
+      const plan = await planRelease(
+        openCheckout(project(), process.env),
+        dryRunInputs(app, ["NPM_SMOKE_KEY"]),
+      );
+      expect(plan).toEqual({
+        tag: "v1.0.1",
+        version: "1.0.1",
+        channels: [
+          {
+            kind: "npm",
+            stage: "dry-run",
+            credentials: ["NPM_SMOKE_KEY"],
+            build: null,
+            smoke: "app --version",
+            smokeNode: false,
+          },
+        ],
+      });
+    }
+    expect(asked).toEqual([]);
+  });
+
+  test("refuses dry_run_app_invalid when a repository without apps is given one", async () => {
+    const error = await dryRunRefusal(project(), "web", ["NPM_SMOKE_KEY"]);
+    expect(error.code).toBe("dry_run_app_invalid");
+    expect(error.meta).toEqual({ app: "web", problem: "ship.toml names no apps, and got the app web" });
+  });
+
+  test("refuses a credential the channels name that the workflow was not given, as a release does", async () => {
+    const error = await dryRunRefusal(project(), undefined, []);
+    expect(error.code).toBe("missing_credential");
+  });
+
+  test("refuses a tracked package whose version is not the release's, as a release does", async () => {
+    const dir = project();
+    writeFileSync(join(dir, "packages", "lib", "package.json"), '{"name":"@scope/lib","version":"1.0.0"}\n');
+    git(dir, ["commit", "-qam", "fix: lib"]);
+    const error = await dryRunRefusal(dir, undefined, ["NPM_SMOKE_KEY"]);
+    expect(error.code).toBe("package_version_mismatch");
   });
 });
 
@@ -221,6 +294,7 @@ describe("the plan's outputs", () => {
 
   test("give each channel its stage, an absent channel absent, and the formula's name", () => {
     expect(outputsOf(plan)).toEqual({
+      tag: "v1.0.1",
       version: "1.0.1",
       "github-release": "served",
       "github-release-credentials": "[]",

@@ -28,8 +28,8 @@ Another module reaches a module only through its bare-named file, so a module's 
 | `workflows`   | The workflows in `.github/workflows` that a push of a tag runs                                             |
 | `channels`    | Whether each channel serves a version: the GitHub release, npm and the Homebrew tap                        |
 | `npm`         | The npm channel's packages: each one's directory, the publish order and those to install                   |
-| `inputs`      | The variables the release workflow passes its scripts, each required                                       |
-| `plan`        | The release workflow's plan: the tag and credentials checked, and each channel to publish or skip          |
+| `inputs`      | The variables the release workflow passes its scripts                                                      |
+| `plan`        | The release workflow's plan: the tag or a dry run's app, the credentials checked, each channel's stage     |
 | `publish`     | The release workflow's GitHub release: a draft with every file, or the files a published release lacks     |
 | `targets`     | The release workflow's per-target builds: each target's files put at their paths, refusing two that differ |
 | `status`      | The `status` command: the tag's workflow runs, waited on, and each channel's state                         |

@@ -52,10 +52,14 @@ function index(steps: readonly Table[], matches: (step: Table) => boolean, what:
 
 const running = (fragment: string) => (step: Table) => textAt(step, "run").includes(fragment);
 
-test("AC-24 the reusable workflow runs when called and on a pushed v* tag, one run per tag at a time, and the npm job may request an OIDC token", () => {
+test("AC-24 the reusable workflow runs when called, on a pushed v* tag and when dispatched, each taking an optional app, one run per tag at a time, and the npm job may request an OIDC token", () => {
   const on = tableAt(workflow, "on");
-  expect(Object.keys(on).toSorted()).toEqual(["push", "workflow_call"]);
+  expect(Object.keys(on).toSorted()).toEqual(["push", "workflow_call", "workflow_dispatch"]);
   expect(on.push).toEqual({ tags: ["v*"] });
+  for (const trigger of ["workflow_call", "workflow_dispatch"]) {
+    const app = tableAt(tableAt(tableAt(on, trigger), "inputs"), "app");
+    expect([app.type, app.default, app.required]).toEqual(["string", "", undefined]);
+  }
   expect(tableAt(workflow, "concurrency")).toEqual({
     group: "agent-ship-release-${{ github.repository }}-${{ github.ref }}",
     "cancel-in-progress": false,
@@ -188,4 +192,61 @@ test("AC-26 each target builds on its own runner, the release is a draft after e
   expect(stepsOf("homebrew").some(running("/dispatches"))).toBe(true);
   const stages = tableAt(tableAt(jobs, "plan"), "outputs");
   for (const name of PUBLISHING_JOBS) expect(stages[name]).toBe(`\${{ steps.plan.outputs.${name} }}`);
+});
+
+test("AC-35 a dry run builds every target and assembles, packs the npm packages from those files, and attests, drafts, publishes, smokes and dispatches nothing", () => {
+  const plan = stepsOf("plan");
+  const check = index(plan, running("release-plan.ts"), "checking the tag");
+  expect(tableAt(plan[check], "env")).toMatchObject({
+    EVENT: "${{ github.event_name }}",
+    APP: "${{ inputs.app }}",
+    TAG: "${{ github.ref_name }}",
+  });
+  const either =
+    "needs.plan.outputs.github-release == 'publish' || needs.plan.outputs.github-release == 'dry-run'";
+  expect(textAt(tableAt(jobs, "github-release-targets"), "if")).toBe(either);
+  expect(textAt(tableAt(jobs, "github-release"), "if")).toBe(either);
+  const release = stepsOf("github-release");
+  const published = "needs.plan.outputs.github-release == 'publish'";
+  for (const matches of [
+    (step: Table) => textAt(step, "uses").startsWith("actions/attest@"),
+    running("scripts/release-files.ts"),
+    running("--draft=false"),
+  ])
+    expect(textAt(release[index(release, matches, "publishing")], "if")).toBe(published);
+  for (const step of [
+    index(release, running('"$ASSEMBLE"'), "assembling"),
+    index(release, running("scripts/target-files.ts"), "merging"),
+  ])
+    expect(textAt(release[step], "if")).not.toContain("'publish'");
+  const kept = index(
+    release,
+    (step) => isTable(step.with) && step.with.name === "dry-run-files",
+    "keeping the dry run's files",
+  );
+  expect(textAt(release[kept], "if")).toBe("needs.plan.outputs.github-release == 'dry-run'");
+  expect(index(release, running('[ -f "$file" ]'), "checking every file") < kept).toBe(true);
+
+  const npmIf = textAt(tableAt(jobs, "npm"), "if");
+  expect(npmIf).toContain("needs.plan.outputs.npm == 'dry-run'");
+  expect(npmIf).toContain("needs.plan.outputs.github-release != 'dry-run'");
+  const npm = stepsOf("npm");
+  const fetched = index(
+    npm,
+    (step) => isTable(step.with) && step.with.name === "dry-run-files",
+    "fetching the dry run's files",
+  );
+  const built = index(npm, running('"$BUILD"'), "building the npm packages");
+  const packed = index(npm, running("npm pack"), "packing");
+  expect(textAt(npm[packed], "run")).toContain("--dry-run");
+  expect(textAt(npm[packed], "if")).toBe("needs.plan.outputs.npm == 'dry-run'");
+  expect(fetched < built && built < packed).toBe(true);
+  for (const fragment of ["npm publish", "until npm view", "gh release download"])
+    expect(textAt(npm[index(npm, running(fragment), fragment)], "if")).toContain(
+      "needs.plan.outputs.npm == 'publish'",
+    );
+  expect(textAt(tableAt(jobs, "npm-smoke"), "if")).toBe("needs.plan.outputs.npm == 'publish'");
+  expect(textAt(tableAt(jobs, "homebrew"), "if")).toContain("needs.plan.outputs.homebrew == 'publish'");
+  for (const name of ["github-release", "npm"])
+    expect(textAt(tableAt(jobs, name).env, "TAG")).toBe("${{ needs.plan.outputs.tag }}");
 });
