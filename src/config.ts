@@ -33,6 +33,7 @@ export type Channel =
       readonly packages: readonly string[];
       readonly source: NpmSource;
       readonly smoke: string;
+      readonly smokeNode: boolean;
     })
   | (ChannelBase & {
       readonly kind: "homebrew";
@@ -102,7 +103,7 @@ const FILE_CREDENTIALS = "file-credentials";
 
 const CHANNEL_KEYS: Readonly<Record<ChannelKind, readonly string[]>> = {
   "github-release": ["build", "assemble", "files", CREDENTIALS, FILE_CREDENTIALS],
-  npm: ["packages", "build", "out", "smoke", CREDENTIALS, FILE_CREDENTIALS],
+  npm: ["packages", "build", "out", "smoke", "smoke-node", CREDENTIALS, FILE_CREDENTIALS],
   homebrew: ["tap", "formula", CREDENTIALS],
 };
 
@@ -254,6 +255,7 @@ function channelOf(kind: ChannelKind, raw: unknown, scope: string): Channel {
         packages: requiredTexts(settings, "packages", scope),
         source: npmSourceOf(settings, scope),
         smoke: text(settings, "smoke", scope),
+        smokeNode: settings["smoke-node"] === undefined ? false : flag(settings, "smoke-node", scope),
       };
     case "homebrew": {
       const [token, ...more] = named;

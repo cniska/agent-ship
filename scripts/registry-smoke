@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+die() {
+  printf 'registry-smoke: %s\n' "$1" >&2
+  exit 1
+}
+
+main() {
+  : "${BIN:?BIN is required, the directory the install put the programs of the packages in}"
+  : "${SMOKE:?SMOKE is required, the smoke command of the npm channel}"
+  : "${VERSION:?VERSION is required, the version under release}"
+  local node_dir="${NODE_DIR:-}"
+  if [ -n "$node_dir" ]; then
+    PATH="$BIN:$node_dir:/usr/bin:/bin"
+  else
+    PATH="$BIN:/usr/bin:/bin"
+  fi
+  export PATH
+  if command -v bun >/dev/null; then
+    die "bun is on the smoke PATH at $(command -v bun), so the smoke would not prove the install needs no Bun"
+  fi
+  if [ -z "$node_dir" ] && command -v node >/dev/null; then
+    die "node is on the smoke PATH at $(command -v node), so the smoke would not prove the install needs no Node; set smoke-node = true if it needs Node"
+  fi
+  exec /bin/sh -c "$SMOKE"
+}
+
+main "$@"

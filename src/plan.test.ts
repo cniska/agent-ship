@@ -138,6 +138,7 @@ describe("the release plan", () => {
         credentials: ["NPM_SMOKE_KEY"],
         build: "make npm",
         smoke: "app --version",
+        smokeNode: false,
       },
     ]);
   });
@@ -155,6 +156,7 @@ describe("the release plan", () => {
           credentials: ["NPM_SMOKE_KEY"],
           build: null,
           smoke: "app --version",
+          smokeNode: false,
         },
       ],
     });
@@ -253,6 +255,7 @@ describe("the plan's outputs", () => {
           credentials: [],
           build: "make npm",
           smoke: "app --version",
+          smokeNode: true,
         },
       ],
     };
@@ -260,12 +263,15 @@ describe("the plan's outputs", () => {
       npm: "publish",
       "npm-build": "make npm",
       "npm-smoke": "app --version",
+      "npm-smoke-node": "true",
     });
     const tracked: Plan = {
       ...npm,
-      channels: [{ kind: "npm", stage: "publish", credentials: [], build: null, smoke: "x" }],
+      channels: [
+        { kind: "npm", stage: "publish", credentials: [], build: null, smoke: "x", smokeNode: false },
+      ],
     };
-    expect(outputsOf(tracked)).toMatchObject({ "npm-build": "" });
+    expect(outputsOf(tracked)).toMatchObject({ "npm-build": "", "npm-smoke-node": "false" });
   });
 
   test("are written as GitHub's multi-line outputs", () => {

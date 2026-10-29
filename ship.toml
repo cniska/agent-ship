@@ -13,7 +13,7 @@ files = ["dist/agent-ship-darwin-arm64.tar.gz", "dist/agent-ship-linux-x64.tar.g
 build = "bun scripts/build-npm.ts dist dist/npm"
 out = "dist/npm"
 packages = ["@cniska/agent-ship-darwin-arm64", "@cniska/agent-ship-linux-x64", "@cniska/agent-ship"]
-smoke = "agent-ship --version"
+smoke = 'test "$(agent-ship --version)" = "$VERSION"'
 
 [channels.homebrew]
 tap = "cniska/homebrew-tap"

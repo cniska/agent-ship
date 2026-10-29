@@ -33,6 +33,7 @@ jobs:
       npm: ${{ steps.plan.outputs.npm }}
       npm-build: ${{ steps.plan.outputs.npm-build }}
       npm-smoke: ${{ steps.plan.outputs.npm-smoke }}
+      npm-smoke-node: ${{ steps.plan.outputs.npm-smoke-node }}
       npm-credentials: ${{ steps.plan.outputs.npm-credentials }}
       homebrew: ${{ steps.plan.outputs.homebrew }}
       homebrew-tap: ${{ steps.plan.outputs.homebrew-tap }}
@@ -279,6 +280,9 @@ jobs:
       contents: read
       id-token: write
 
+    outputs:
+      install: ${{ steps.packages.outputs.install }}
+
     defaults:
       run:
         shell: bash
@@ -376,25 +380,92 @@ jobs:
             done
           done <<<"$PUBLISH"
 
-      - name: Install the version from the registry
+  npm-smoke:
+    name: npm smoke (${{ matrix.target }}, ${{ matrix.installer }})
+    needs: [plan, npm]
+    if: needs.plan.outputs.npm == 'publish'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: darwin-arm64
+            runner: macos-latest
+            installer: npm
+          - target: darwin-arm64
+            runner: macos-latest
+            installer: bun
+          - target: linux-x64
+            runner: ubuntu-latest
+            installer: npm
+          - target: linux-x64
+            runner: ubuntu-latest
+            installer: bun
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: project
+
+    env:
+      VERSION: ${{ needs.plan.outputs.version }}
+
+    steps:
+      - name: Check out the project
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: project
+          persist-credentials: false
+
+      - name: Check out agent-ship
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ job.workflow_repository }}
+          ref: ${{ job.workflow_sha }}
+          path: agent-ship
+          persist-credentials: false
+
+      - name: Mask credentials
         env:
-          INSTALL: ${{ steps.packages.outputs.install }}
+          SECRETS: ${{ toJSON(secrets) }}
+          CREDENTIALS: ${{ needs.plan.outputs.npm-credentials }}
+        run: '"$GITHUB_WORKSPACE/agent-ship/scripts/release-secrets"'
+
+      - name: Set up Node
+        if: matrix.installer == 'npm' || needs.plan.outputs.npm-smoke-node == 'true'
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 24
+
+      - name: Find Node's directory for the smoke
+        id: node
+        if: needs.plan.outputs.npm-smoke-node == 'true'
+        run: printf 'dir=%s\n' "$(dirname "$(command -v node)")" >>"$GITHUB_OUTPUT"
+
+      - name: Set up Bun
+        if: matrix.installer == 'bun'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+
+      - name: Install the version from the registry into a prefix of its own
+        env:
+          INSTALL: ${{ needs.npm.outputs.install }}
+          INSTALLER: ${{ matrix.installer }}
         run: |
           while read -r name; do
-            npm install --global "$name@$VERSION"
+            case "$INSTALLER" in
+              npm) npm install --global --prefix "$RUNNER_TEMP/global" "$name@$VERSION" ;;
+              bun) BUN_INSTALL_GLOBAL_DIR="$RUNNER_TEMP/global/bun" BUN_INSTALL_BIN="$RUNNER_TEMP/global/bin" bun add --global "$name@$VERSION" ;;
+              *) printf '::error::no installer %s\n' "$INSTALLER"; exit 1 ;;
+            esac
           done <<<"$INSTALL"
 
-      - name: Run the smoke command against the installed version, with only npm's and the system's programs on PATH
-        working-directory: ${{ runner.temp }}
+      - name: Run the smoke command in the project, with only the installed programs and the system's on PATH
         env:
           SMOKE: ${{ needs.plan.outputs.npm-smoke }}
-        run: |
-          PATH="$(npm prefix --global)/bin:/usr/bin:/bin"
-          if command -v bun; then
-            printf '::error::bun is on the smoke PATH, so the smoke would not prove the install needs no Bun\n'
-            exit 1
-          fi
-          /bin/sh -c "$SMOKE"
+          NODE_DIR: ${{ steps.node.outputs.dir }}
+        run: BIN="$RUNNER_TEMP/global/bin" "$GITHUB_WORKSPACE/agent-ship/scripts/registry-smoke"
 
   homebrew:
     name: Homebrew

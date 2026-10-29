@@ -40,6 +40,28 @@ function npmSource(npm: string) {
   return channel?.kind === "npm" ? channel.source : null;
 }
 
+function smokeNodeOf(npm: string) {
+  const config = configWith(npm);
+  const channel = config.kind === "single" ? config.app.channels[0] : undefined;
+  return channel?.kind === "npm" ? channel.smokeNode : "no npm channel";
+}
+
+describe("the npm channel's smoke-node", () => {
+  test("is false when the channel does not name it, and what it names otherwise", () => {
+    expect(smokeNodeOf("")).toBe(false);
+    expect(smokeNodeOf("smoke-node = true\n")).toBe(true);
+    expect(smokeNodeOf("smoke-node = false\n")).toBe(false);
+  });
+
+  test("is refused when it is not true or false", () => {
+    const error = invalidKey('smoke-node = "yes"\n');
+    expect([error.code, error.message]).toEqual([
+      "config_invalid",
+      "ship.toml: channels.npm.smoke-node must be true or false",
+    ]);
+  });
+});
+
 describe("the npm channel's source", () => {
   test("is the tracked package.json files with no build, and the build's out with one", () => {
     expect(npmSource("")).toEqual({ kind: "tracked" });

@@ -22,7 +22,12 @@ type ChannelPlan =
       readonly assemble: string | null;
       readonly files: readonly string[];
     })
-  | (Planned & { readonly kind: "npm"; readonly build: string | null; readonly smoke: string })
+  | (Planned & {
+      readonly kind: "npm";
+      readonly build: string | null;
+      readonly smoke: string;
+      readonly smokeNode: boolean;
+    })
   | (Planned & {
       readonly kind: "homebrew";
       readonly tap: string;
@@ -125,6 +130,7 @@ function channelPlan(channel: Channel, stage: Stage): ChannelPlan {
         credentials,
         build: channel.source.kind === "built" ? channel.source.build : null,
         smoke: channel.smoke,
+        smokeNode: channel.smokeNode,
       };
     case "homebrew":
       return {
@@ -173,6 +179,7 @@ function channelOutputs(plan: ChannelPlan): Readonly<Record<string, string>> {
         ...shared,
         [`${key}-build`]: plan.build ?? "",
         [`${key}-smoke`]: plan.smoke,
+        [`${key}-smoke-node`]: String(plan.smokeNode),
       };
     case "homebrew":
       return {

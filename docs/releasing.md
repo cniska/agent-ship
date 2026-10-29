@@ -11,7 +11,8 @@ How a project releases through agent-ship's reusable workflow, and how agent-shi
 | Plan | Refuses `tag_mismatch` or `missing_credential`, and, for an npm channel with no `build`, `package_not_tracked`, `package_version_mismatch` or `package_order`, before anything is built or published; decides each channel's stage |
 | GitHub release build | Runs the channel's `build` once per target, each on that target's own runner, and keeps the files each one made |
 | GitHub release | Puts each target's files at their paths, runs `assemble` when the channel names one, attests the build provenance of each file, creates the tag's release as a draft with every file, then publishes it in a later step |
-| npm | Builds the packages when the channel has a `build`, publishes each in the listed order with provenance through npm's trusted publishing and no npm token, waits until the registry serves each, then installs the version and runs `smoke` |
+| npm | Builds the packages when the channel has a `build`, publishes each in the listed order with provenance through npm's trusted publishing and no npm token, and waits until the registry serves each |
+| npm smoke | On each target's runner, through npm and through Bun, installs the version from the registry and runs `smoke` |
 | Homebrew | Once the release is published, or when no release needs publishing, dispatches the tap to repin the formula |
 
 Every job masks every secret value first; a channel's job sees only the credentials that channel names.
@@ -48,7 +49,8 @@ The release job then puts each target's files at their paths. Two targets may ma
 - **Credentials.** The plan finds a credential among the secrets the caller passes, by its exact name. A file credential is checked only as set; the workflow does not write it to a file.
 - **npm packages.** Without a `build`, each package in `packages` is published from the directory of the tracked `package.json` that names it. With a `build` and `out`, the npm job first downloads each file the `github-release` channel names, if there is one, from the published release to that file's path, then runs the `build`, and publishes each package from the directory of the `package.json` under `out` that names it. The job refuses `package_not_built`, `package_version_mismatch` or `package_order` before it publishes any package.
 - **Package order.** Packages publish in the order `packages` lists them, and a package listed before a listed package it names in `dependencies` or `optionalDependencies` is refused `package_order`. A root that names its platform packages as optional dependencies goes last.
-- **The smoke.** The job installs each listed package no other listed package depends on, then runs `smoke` with `PATH` holding only npm's global programs, Node among them, and `/usr/bin` and `/bin`. It fails when Bun is on that `PATH`, so a passing smoke shows the install needs no Bun.
+- **The smoke.** Four runs, each target's runner through npm and through Bun, install each listed package no other listed package depends on into a prefix of their own. Each then runs `smoke` in the project's checkout, with `VERSION` set to the version under release.
+- **The smoke's `PATH`.** It holds only the prefix's programs, `/usr/bin` and `/bin`, and Node only when the channel sets `smoke-node`. A smoke fails when Bun is on that `PATH`, or Node without `smoke-node`, so a passing smoke shows the install needs neither.
 - **The tap.** The dispatch is the `formula-release` event on the tap. Its payload holds `formula`, the formula file's name without `.rb`; `ref`, the tag; and `version`. The tap's own workflow repins the formula.
 
 ## Calling it

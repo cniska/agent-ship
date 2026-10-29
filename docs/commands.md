@@ -137,7 +137,9 @@ credentials = ["TAP_DISPATCH_TOKEN"]
 | `channels.github-release.build` | The command that builds one target's release files and smoke-tests them, run once per target with `TARGET` set, as [Targets](releasing.md#targets) says |
 | `channels.github-release.files` | The files the release attaches |
 | `channels.github-release.assemble` | Optional: the command run once after every target's build, making the files that span targets |
-| `channels.npm.packages`, `.smoke` | The packages it publishes, in that order, and the command run against the installed version |
+| `channels.npm.packages` | The packages it publishes, in that order |
+| `channels.npm.smoke` | The command run in the checkout against each installed version, with `VERSION` set, as [What a channel needs](releasing.md#what-a-channel-needs) says |
+| `channels.npm.smoke-node` | Optional, `false` by default: whether Node is on the smoke's `PATH` |
 | `channels.npm.build`, `.out` | Optional, given together: the command that builds the packages, and the directory, inside the checkout, it writes them under; without them, each package is a tracked `package.json` |
 | `channels.homebrew.tap`, `.formula` | The tap repository dispatched to repin, and its formula |
 

@@ -74,7 +74,7 @@ test("AC-25 the tag and credential check precedes every build and publish, and e
     expect(needsOf(name)).toContain("plan");
     expect(textAt(tableAt(jobs, name), "if")).toContain(`needs.plan.outputs.${name} == 'publish'`);
   }
-  for (const name of ["plan", "github-release-targets", ...PUBLISHING_JOBS]) {
+  for (const name of ["plan", "github-release-targets", ...PUBLISHING_JOBS, "npm-smoke"]) {
     const steps = stepsOf(name);
     const mask = index(steps, running(MASK), `masking in ${name}`);
     const readers = steps.flatMap((step, at) => (READS_SECRETS.test(JSON.stringify(step)) ? [at] : []));
@@ -85,7 +85,7 @@ test("AC-25 the tag and credential check precedes every build and publish, and e
   }
 });
 
-test("AC-26 each target builds on its own runner, the release is a draft after every file's attestation and published later, npm publishes with provenance and no token then installs and smokes, the tap waits on the published release, and a served channel is skipped", () => {
+test("AC-26 each target builds on its own runner, the release is a draft after every file's attestation and published later, npm publishes with provenance and no token, then each target's runner installs it from the registry through npm and Bun into a prefix of its own and smokes it, the tap waits on the published release, and a served channel is skipped", () => {
   const targets = tableAt(jobs, "github-release-targets");
   expect(tableAt(tableAt(targets, "strategy"), "matrix").include).toEqual([
     { target: "darwin-arm64", runner: "macos-latest" },
@@ -140,16 +140,46 @@ test("AC-26 each target builds on its own runner, the release is a draft after e
   const published = index(npm, running("npm publish"), "publishing to npm");
   expect(textAt(npm[published], "run")).toContain("--provenance");
   expect(textAt(npm[published], "run")).toContain('npm view "$name@$VERSION"');
-  const installed = index(npm, running("npm install --global"), "installing");
-  expect(textAt(npm[installed], "run")).toContain('"$name@$VERSION"');
-  expect(tableAt(npm[installed], "env").INSTALL).toBe("${{ steps.packages.outputs.install }}");
-  const smoked = index(npm, running('"$SMOKE"'), "smoking");
-  const smoke = textAt(npm[smoked], "run");
-  expect(smoke).toContain('PATH="$(npm prefix --global)/bin:/usr/bin:/bin"');
-  expect(smoke.indexOf("PATH=") < smoke.indexOf("command -v bun")).toBe(true);
-  expect(smoke.indexOf("command -v bun") < smoke.indexOf('"$SMOKE"')).toBe(true);
-  const order = [downloaded, builtNpm, found, published, installed, smoked];
+  const order = [downloaded, builtNpm, found, published];
   expect(order.toSorted((a, b) => a - b)).toEqual(order);
+  expect(npm.some(running('"$SMOKE"'))).toBe(false);
+  expect(tableAt(tableAt(jobs, "npm"), "outputs").install).toBe("${{ steps.packages.outputs.install }}");
+
+  const smokeJob = tableAt(jobs, "npm-smoke");
+  expect(needsOf("npm-smoke")).toContain("npm");
+  expect(textAt(smokeJob, "if")).toBe("needs.plan.outputs.npm == 'publish'");
+  expect(smokeJob["runs-on"]).toBe("${{ matrix.runner }}");
+  const strategy = tableAt(smokeJob, "strategy");
+  expect(strategy["fail-fast"]).toBe(false);
+  expect(tableAt(strategy, "matrix").include).toEqual([
+    { target: "darwin-arm64", runner: "macos-latest", installer: "npm" },
+    { target: "darwin-arm64", runner: "macos-latest", installer: "bun" },
+    { target: "linux-x64", runner: "ubuntu-latest", installer: "npm" },
+    { target: "linux-x64", runner: "ubuntu-latest", installer: "bun" },
+  ]);
+  expect(textAt(tableAt(tableAt(smokeJob, "defaults"), "run"), "working-directory")).toBe("project");
+  const smokeSteps = stepsOf("npm-smoke");
+  const installed = index(smokeSteps, running('"$name@$VERSION"'), "installing");
+  const install = textAt(smokeSteps[installed], "run");
+  expect(install).toContain('npm install --global --prefix "$RUNNER_TEMP/global"');
+  expect(install).toContain('BUN_INSTALL_BIN="$RUNNER_TEMP/global/bin"');
+  expect(tableAt(smokeSteps[installed], "env")).toEqual({
+    INSTALL: "${{ needs.npm.outputs.install }}",
+    INSTALLER: "${{ matrix.installer }}",
+  });
+  const smoked = index(smokeSteps, running("scripts/registry-smoke"), "smoking");
+  expect(textAt(smokeSteps[smoked], "run")).toContain('BIN="$RUNNER_TEMP/global/bin"');
+  expect(tableAt(smokeSteps[smoked], "env")).toEqual({
+    SMOKE: "${{ needs.plan.outputs.npm-smoke }}",
+    NODE_DIR: "${{ steps.node.outputs.dir }}",
+  });
+  expect(installed < smoked).toBe(true);
+  expect(textAt(tableAt(smokeJob, "env"), "VERSION")).toBe("${{ needs.plan.outputs.version }}");
+  const node = index(smokeSteps, (step) => step.id === "node", "finding Node's directory");
+  expect(textAt(smokeSteps[node], "if")).toBe("needs.plan.outputs.npm-smoke-node == 'true'");
+  expect(tableAt(tableAt(jobs, "plan"), "outputs")["npm-smoke-node"]).toBe(
+    "${{ steps.plan.outputs.npm-smoke-node }}",
+  );
 
   const homebrew = textAt(tableAt(jobs, "homebrew"), "if");
   expect(needsOf("homebrew")).toContain("github-release");
