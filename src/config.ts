@@ -1,5 +1,5 @@
 import { readFileSync, statSync, writeFileSync } from "node:fs";
-import { basename, join } from "node:path";
+import { basename, isAbsolute, join } from "node:path";
 import { unreachable } from "./assert";
 import { refusals } from "./coded-error";
 import { isTable, parsedJson, type Table } from "./table";
@@ -15,13 +15,24 @@ export type Credential = { readonly name: string; readonly file: boolean };
 
 type ChannelBase = { readonly credentials: readonly Credential[] };
 
+type NpmSource =
+  | { readonly kind: "tracked" }
+  | { readonly kind: "built"; readonly build: string; readonly out: string };
+
+export type NpmChannel = Extract<Channel, { readonly kind: "npm" }>;
+
 export type Channel =
   | (ChannelBase & {
       readonly kind: "github-release";
       readonly build: string;
       readonly files: readonly string[];
     })
-  | (ChannelBase & { readonly kind: "npm"; readonly packages: readonly string[]; readonly smoke: string })
+  | (ChannelBase & {
+      readonly kind: "npm";
+      readonly packages: readonly string[];
+      readonly source: NpmSource;
+      readonly smoke: string;
+    })
   | (ChannelBase & {
       readonly kind: "homebrew";
       readonly tap: string;
@@ -90,7 +101,7 @@ const FILE_CREDENTIALS = "file-credentials";
 
 const CHANNEL_KEYS: Readonly<Record<ChannelKind, readonly string[]>> = {
   "github-release": ["build", "files", CREDENTIALS, FILE_CREDENTIALS],
-  npm: ["packages", "smoke", CREDENTIALS, FILE_CREDENTIALS],
+  npm: ["packages", "build", "out", "smoke", CREDENTIALS, FILE_CREDENTIALS],
   homebrew: ["tap", "formula", CREDENTIALS],
 };
 
@@ -103,6 +114,10 @@ const APP_TAG = "<app>-v<version>";
 const VARIABLE_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
 const APP_NAME = /^[a-z0-9][a-z0-9-]*$/;
+
+const PATH_SEPARATORS = /[\\/]/;
+
+const PARENT = "..";
 
 const SECRET_FORMS: readonly { readonly form: string; readonly pattern: RegExp }[] = [
   { form: "a GitHub token", pattern: /\b(gh[pousr]_[A-Za-z0-9]{36,}|github_pat_[A-Za-z0-9_]{22,})\b/ },
@@ -199,6 +214,20 @@ function isChannelKind(kind: string): kind is ChannelKind {
   return CHANNEL_KINDS.some((known) => known === kind);
 }
 
+function insidePath(raw: Table, key: string, scope: string): string {
+  const path = text(raw, key, scope);
+  if (isAbsolute(path) || path.split(PATH_SEPARATORS).includes(PARENT))
+    invalid(keyOf(scope, key), "must be a path inside the checkout, relative to its root");
+  return path;
+}
+
+function npmSourceOf(settings: Table, scope: string): NpmSource {
+  if (settings.build === undefined && settings.out === undefined) return { kind: "tracked" };
+  if (settings.build === undefined) invalid(keyOf(scope, "build"), "is missing, and out needs it");
+  if (settings.out === undefined) invalid(keyOf(scope, "out"), "is missing, and build needs it");
+  return { kind: "built", build: text(settings, "build", scope), out: insidePath(settings, "out", scope) };
+}
+
 function channelOf(kind: ChannelKind, raw: unknown, scope: string): Channel {
   const settings = tableAt(raw, scope);
   onlyKnown(settings, CHANNEL_KEYS[kind], scope);
@@ -221,6 +250,7 @@ function channelOf(kind: ChannelKind, raw: unknown, scope: string): Channel {
         kind,
         credentials,
         packages: requiredTexts(settings, "packages", scope),
+        source: npmSourceOf(settings, scope),
         smoke: text(settings, "smoke", scope),
       };
     case "homebrew": {

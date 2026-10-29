@@ -110,7 +110,39 @@ describe("the release plan", () => {
     expect(asked).toEqual([]);
   });
 
-  test("publishes a channel the registry does not serve yet, from each package's directory", async () => {
+  test("refuses a tracked package whose version is not the release's, before reading the registry", async () => {
+    const dir = project();
+    writeFileSync(join(dir, "packages", "lib", "package.json"), '{"name":"@scope/lib","version":"1.0.0"}\n');
+    git(dir, ["commit", "-qam", "fix: lib"]);
+    const error = await refusal(dir, "v1.0.1", ["NPM_SMOKE_KEY"]);
+    expect(error.code).toBe("package_version_mismatch");
+    expect(asked).toEqual([]);
+  });
+
+  test("leaves a built channel's packages to the npm job, which builds them", async () => {
+    const dir = project();
+    writeFileSync(
+      join(dir, "ship.toml"),
+      SHIP.replace(
+        'smoke = "app --version"',
+        'build = "make npm"\nout = "dist/npm"\nsmoke = "app --version"',
+      ),
+    );
+    git(dir, ["commit", "-qam", "build: npm"]);
+    git(dir, ["rm", "-q", "packages/lib/package.json"]);
+    const plan = await planRelease(openCheckout(dir, process.env), inputs("v1.0.1", ["NPM_SMOKE_KEY"]));
+    expect(plan.channels).toEqual([
+      {
+        kind: "npm",
+        stage: "publish",
+        credentials: ["NPM_SMOKE_KEY"],
+        build: "make npm",
+        smoke: "app --version",
+      },
+    ]);
+  });
+
+  test("publishes a channel the registry does not serve yet", async () => {
     served.add("@scope/app");
     const plan = await planRelease(openCheckout(project(), process.env), inputs("v1.0.1", ["NPM_SMOKE_KEY"]));
     expect(plan).toEqual({
@@ -121,10 +153,7 @@ describe("the release plan", () => {
           kind: "npm",
           stage: "publish",
           credentials: ["NPM_SMOKE_KEY"],
-          packages: [
-            { name: "@scope/app", dir: "." },
-            { name: "@scope/lib", dir: "packages/lib" },
-          ],
+          build: null,
           smoke: "app --version",
         },
       ],
@@ -203,7 +232,7 @@ describe("the plan's outputs", () => {
     });
   });
 
-  test("give each npm package its name, then its directory", () => {
+  test("give the npm channel its build, or none for tracked packages", () => {
     const npm: Plan = {
       tag: "v1.0.1",
       version: "1.0.1",
@@ -212,19 +241,21 @@ describe("the plan's outputs", () => {
           kind: "npm",
           stage: "publish",
           credentials: [],
-          packages: [
-            { name: "@scope/app", dir: "." },
-            { name: "@scope/lib", dir: "packages/my lib" },
-          ],
+          build: "make npm",
           smoke: "app --version",
         },
       ],
     };
     expect(outputsOf(npm)).toMatchObject({
       npm: "publish",
-      "npm-packages": "@scope/app .\n@scope/lib packages/my lib",
+      "npm-build": "make npm",
       "npm-smoke": "app --version",
     });
+    const tracked: Plan = {
+      ...npm,
+      channels: [{ kind: "npm", stage: "publish", credentials: [], build: null, smoke: "x" }],
+    };
+    expect(outputsOf(tracked)).toMatchObject({ "npm-build": "" });
   });
 
   test("are written as GitHub's multi-line outputs", () => {

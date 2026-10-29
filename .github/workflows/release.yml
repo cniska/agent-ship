@@ -26,7 +26,7 @@ jobs:
       github-release-files: ${{ steps.plan.outputs.github-release-files }}
       github-release-credentials: ${{ steps.plan.outputs.github-release-credentials }}
       npm: ${{ steps.plan.outputs.npm }}
-      npm-packages: ${{ steps.plan.outputs.npm-packages }}
+      npm-build: ${{ steps.plan.outputs.npm-build }}
       npm-smoke: ${{ steps.plan.outputs.npm-smoke }}
       npm-credentials: ${{ steps.plan.outputs.npm-credentials }}
       homebrew: ${{ steps.plan.outputs.homebrew }}
@@ -168,8 +168,8 @@ jobs:
 
   npm:
     name: npm
-    needs: plan
-    if: needs.plan.outputs.npm == 'publish'
+    needs: [plan, github-release]
+    if: ${{ !cancelled() && needs.plan.result == 'success' && needs.plan.outputs.npm == 'publish' && (needs.plan.outputs.npm-build == '' || needs.github-release.result == 'success' || needs.plan.outputs.github-release != 'publish') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -183,8 +183,10 @@ jobs:
         working-directory: project
 
     env:
+      TAG: ${{ github.ref_name }}
       VERSION: ${{ needs.plan.outputs.version }}
-      PACKAGES: ${{ needs.plan.outputs.npm-packages }}
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
 
     steps:
       - name: Check out the project
@@ -207,6 +209,15 @@ jobs:
           CREDENTIALS: ${{ needs.plan.outputs.npm-credentials }}
         run: '"$GITHUB_WORKSPACE/agent-ship/scripts/release-secrets"'
 
+      - name: Set up agent-ship's toolchain
+        uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
+        with:
+          working_directory: agent-ship
+
+      - name: Install agent-ship's dependencies
+        working-directory: agent-ship
+        run: bun install --frozen-lockfile
+
       - name: Set up the project's toolchain
         uses: jdx/mise-action@9b200bcecbfd6303e69a4a261b2e09e3757440a7 # v5.2.0
         with:
@@ -217,7 +228,30 @@ jobs:
         with:
           node-version: 24
 
+      - name: Put the release's files at their paths
+        if: needs.plan.outputs.npm-build != '' && needs.plan.outputs.github-release != 'absent'
+        env:
+          FILES: ${{ needs.plan.outputs.github-release-files }}
+        run: |
+          while IFS= read -r file; do
+            gh release download "$TAG" --pattern "$(basename "$file")" --dir "$(dirname "$file")" --clobber
+          done <<<"$FILES"
+
+      - name: Build the packages
+        if: needs.plan.outputs.npm-build != ''
+        env:
+          BUILD: ${{ needs.plan.outputs.npm-build }}
+        run: /bin/sh -c "$BUILD"
+
+      - name: Find each package's directory
+        id: packages
+        run: |
+          bun="$(mise which -C "$GITHUB_WORKSPACE/agent-ship" bun)"
+          "$bun" "$GITHUB_WORKSPACE/agent-ship/scripts/npm-packages.ts"
+
       - name: Publish each package with provenance
+        env:
+          PUBLISH: ${{ steps.packages.outputs.publish }}
         run: |
           while read -r name dir; do
             if npm view "$name@$VERSION" version >/dev/null 2>&1; then
@@ -225,9 +259,11 @@ jobs:
               continue
             fi
             npm publish "./$dir" --access public --provenance
-          done <<<"$PACKAGES"
+          done <<<"$PUBLISH"
 
       - name: Wait for the registry to serve each package
+        env:
+          PUBLISH: ${{ steps.packages.outputs.publish }}
         run: |
           while read -r name _; do
             attempt=0
@@ -236,19 +272,27 @@ jobs:
               [ "$attempt" -lt 30 ] || { printf '::error::%s@%s is not on the registry\n' "$name" "$VERSION"; exit 1; }
               sleep 10
             done
-          done <<<"$PACKAGES"
+          done <<<"$PUBLISH"
 
       - name: Install the version from the registry
+        env:
+          INSTALL: ${{ steps.packages.outputs.install }}
         run: |
-          while read -r name _; do
+          while read -r name; do
             npm install --global "$name@$VERSION"
-          done <<<"$PACKAGES"
+          done <<<"$INSTALL"
 
-      - name: Run the smoke command against the installed version
+      - name: Run the smoke command against the installed version, with only npm's and the system's programs on PATH
         working-directory: ${{ runner.temp }}
         env:
           SMOKE: ${{ needs.plan.outputs.npm-smoke }}
-        run: /bin/sh -c "$SMOKE"
+        run: |
+          PATH="$(npm prefix --global)/bin:/usr/bin:/bin"
+          if command -v bun; then
+            printf '::error::bun is on the smoke PATH, so the smoke would not prove the install needs no Bun\n'
+            exit 1
+          fi
+          /bin/sh -c "$SMOKE"
 
   homebrew:
     name: Homebrew

@@ -8,9 +8,9 @@ How a project releases through agent-ship's reusable workflow, and how agent-shi
 
 | Job | Does |
 | --- | --- |
-| Plan | Refuses `tag_mismatch`, `missing_credential` or `package_not_tracked` before anything is built or published, and decides each channel's stage |
+| Plan | Refuses `tag_mismatch` or `missing_credential`, and, for an npm channel with no `build`, `package_not_tracked`, `package_version_mismatch` or `package_order`, before anything is built or published; decides each channel's stage |
 | GitHub release | Runs the channel's `build`, attests the build provenance of each file, creates the tag's release as a draft with every file, then publishes it in a later step |
-| npm | Publishes each package with provenance through npm's trusted publishing, with no npm token, waits until the registry serves it, installs it and runs the channel's `smoke` command |
+| npm | Builds the packages when the channel has a `build`, publishes each in the listed order with provenance through npm's trusted publishing and no npm token, waits until the registry serves each, then installs the version and runs `smoke` |
 | Homebrew | Once the release is published, or when no release needs publishing, dispatches the tap to repin the formula |
 
 Every job masks every secret value first; a channel's job sees only the credentials that channel names.
@@ -28,7 +28,9 @@ A rerun on the same tag publishes nothing twice. The release job attaches to an 
 ### What a channel needs
 
 - **Credentials.** The plan finds a credential among the secrets the caller passes, by its exact name. A file credential is checked only as set; the workflow does not write it to a file.
-- **npm packages.** Each package in `packages` is published from the directory of the tracked `package.json` that names it.
+- **npm packages.** Without a `build`, each package in `packages` is published from the directory of the tracked `package.json` that names it. With a `build` and `out`, the npm job first downloads each file the `github-release` channel names, if there is one, from the published release to that file's path, then runs the `build`, and publishes each package from the directory of the `package.json` under `out` that names it. The job refuses `package_not_built`, `package_version_mismatch` or `package_order` before it publishes any package.
+- **Package order.** Packages publish in the order `packages` lists them, and a package listed before a listed package it names in `dependencies` or `optionalDependencies` is refused `package_order`. A root that names its platform packages as optional dependencies goes last.
+- **The smoke.** The job installs each listed package no other listed package depends on, then runs `smoke` with `PATH` holding only npm's global programs, Node among them, and `/usr/bin` and `/bin`. It fails when Bun is on that `PATH`, so a passing smoke shows the install needs no Bun.
 - **The tap.** The dispatch is the `formula-release` event on the tap. Its payload holds `formula`, the formula file's name without `.rb`; `ref`, the tag; and `version`. The tap's own workflow repins the formula.
 
 ## Calling it
@@ -60,7 +62,7 @@ jobs:
 2. Push the branch, then the tag, as `release` prints. The tag starts the release.
 3. Run `agent-ship status <tag>` until every channel is `served`.
 
-A tag that published nothing can be deleted and made again once the fix is on the release branch. Once a tag has published anything, the fix goes out as a new, higher version; a tag is never moved.
+A tag that published nothing can be deleted and made again once the fix is on the release branch. With a `github-release` channel, an npm job refuses built packages only after the release is published, so that tag has already published something. Once a tag has published anything, the fix goes out as a new, higher version; a tag is never moved.
 
 ## agent-ship's own release
 

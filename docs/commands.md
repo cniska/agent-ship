@@ -71,7 +71,7 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 | `not_a_checkout` | The command runs outside a git checkout |
 | `config_missing` | The checkout has no `ship.toml` |
 | `secret_in_config` | A `ship.toml` value has the form of a GitHub token, an npm token or a private key |
-| `config_invalid` | `ship.toml` is not TOML, lacks a key, holds an unknown key or channel kind, a floor's level is not `minor` or `major`, or the version is not `x.y.z` |
+| `config_invalid` | `ship.toml` is not TOML, lacks a key, holds an unknown key or channel kind, a floor's level is not `minor` or `major`, the npm channel's `out` is outside the checkout, or the version is not `x.y.z` |
 | `dirty_tree` | A tracked file changed, or a file git does not ignore is untracked |
 | `not_on_release_branch` | HEAD is not on the release branch |
 | `unpushed_commits` | HEAD is not origin's commit of the release branch, unless the commits on top of it change only files the `notes` paths match |
@@ -132,7 +132,8 @@ credentials = ["TAP_DISPATCH_TOKEN"]
 | `channels.<kind>.credentials` | The names of the variables holding the credentials the channel reads |
 | `channels.<kind>.file-credentials` | The names of variables whose values are paths to credential files |
 | `channels.github-release.build`, `.files` | The command that builds the release files, and the files it attaches |
-| `channels.npm.packages`, `.smoke` | The packages it publishes, and the command run against the installed version |
+| `channels.npm.packages`, `.smoke` | The packages it publishes, in that order, and the command run against the installed version |
+| `channels.npm.build`, `.out` | Optional, given together: the command that builds the packages, and the directory, inside the checkout, it writes them under; without them, each package is a tracked `package.json` |
 | `channels.homebrew.tap`, `.formula` | The tap repository dispatched to repin, and its formula |
 
 Each path in `notes`, `floors` and an app's `paths` is a file or a glob relative to the checkout's root, where `*` matches within one path segment and `**` across segments.
