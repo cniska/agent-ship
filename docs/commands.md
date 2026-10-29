@@ -65,7 +65,10 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 
 | Code | Refused when |
 | --- | --- |
-| `unknown_command` | The command is not one of the above; a usage error |
+| `no_build_for_platform` | The npm launcher runs on a platform with no platform package |
+| `platform_package_missing` | The npm launcher finds no platform package installed beside it |
+| `binary_failed` | The npm launcher finds a platform package whose binary is not executable |
+| `unknown_command` | The command is not `check`, `release`, `status` or `doctor`; a usage error |
 | `wrong_arity` | `--help` or `--version` is given an argument; a usage error |
 | `bad_arguments` | An argument is missing, empty, extra or unknown; an app is missing, unknown or given where there are none (a first argument to `release` that is neither a level nor `x.y.z` is an app); or a tag matches no tag pattern; a usage error |
 | `not_a_checkout` | The command runs outside a git checkout |

@@ -72,7 +72,7 @@ agent-ship's `ship.toml` names three channels:
 - **`npm`**: `scripts/build-npm.ts` builds three packages under `dist/npm` from the release's tarballs:
   - `@cniska/agent-ship-darwin-arm64` and `@cniska/agent-ship-linux-x64` each hold that platform's binary and install only on it.
   - `@cniska/agent-ship` holds only the launcher `npm/agent-ship` and names both as optional dependencies at its version. The launcher is a POSIX `sh` script that runs the binary of the platform package installed beside it, so an npm install needs no Bun.
-  - The launcher refuses `no_build_for_platform` on another platform, `platform_package_missing` when that package is not installed, and `binary_failed` when its binary is not executable.
+  - The launcher's refusals are in the [errors table](commands.md#errors).
 - **`homebrew`**: `Formula/agent-ship.rb` in `cniska/homebrew-tap`, dispatched with `TAP_DISPATCH_TOKEN`.
 
 ## The owner's setup, once
