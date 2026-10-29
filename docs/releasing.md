@@ -69,15 +69,18 @@ A tag that published nothing can be deleted and made again once the fix is on th
 agent-ship's `ship.toml` names three channels:
 
 - **`github-release`**: `scripts/build` compiles `agent-ship` for `darwin-arm64` and `linux-x64` into tarballs in `dist/`, with their `SHA256SUMS.txt`.
-- **`npm`**: the package `@cniska/agent-ship`. Its `bin/agent-ship` runs the CLI with mise's Bun in a checkout, and with the Bun on `PATH` once installed from npm.
+- **`npm`**: `scripts/build-npm.ts` builds three packages under `dist/npm` from the release's tarballs:
+  - `@cniska/agent-ship-darwin-arm64` and `@cniska/agent-ship-linux-x64` each hold that platform's binary and install only on it.
+  - `@cniska/agent-ship` holds only the launcher `npm/agent-ship` and names both as optional dependencies at its version. The launcher is a POSIX `sh` script that runs the binary of the platform package installed beside it, so an npm install needs no Bun.
+  - The launcher refuses `no_build_for_platform` on another platform, `platform_package_missing` when that package is not installed, and `binary_failed` when its binary is not executable.
 - **`homebrew`**: `Formula/agent-ship.rb` in `cniska/homebrew-tap`, dispatched with `TAP_DISPATCH_TOKEN`.
 
 ## The owner's setup, once
 
 For each project, and for agent-ship itself:
 
-1. Publish each npm package once by hand, so trusted publishing can be set on it.
-2. On npmjs.com, add a trusted publisher to each package: GitHub Actions, the project's repository, workflow `release.yml`.
+1. Publish each npm package in `packages` once by hand, such as a `0.0.0` holding only its `package.json`: npm sets a trusted publisher only on a package the registry holds.
+2. Add a trusted publisher to each package, with publish allowed: GitHub Actions, the project's repository, workflow `release.yml`. On npm 11.15 or later, `npm trust github <package> --repo <owner>/<repo> --file release.yml --allow-publish` adds it.
 3. In the project's Actions secrets, add each credential `ship.toml` names, such as `TAP_DISPATCH_TOKEN`, a fine-grained token on the tap with Contents read and write.
 4. For a `homebrew` channel, add the formula to the tap: the dispatch repins a formula and creates none.
 

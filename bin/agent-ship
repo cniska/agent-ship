@@ -1,8 +1,5 @@
 #!/bin/sh
 set -eu
 checkout=$(cd "$(dirname "$(realpath "$0")")/.." && pwd)
-bun=bun
-if [ -f "$checkout/mise.toml" ]; then
-  bun=$(MISE_DATA_DIR="${MISE_DATA_DIR:-$HOME/.local/share/mise}" mise which -C "$checkout" bun)
-fi
+bun=$(MISE_DATA_DIR="${MISE_DATA_DIR:-$HOME/.local/share/mise}" mise which -C "$checkout" bun)
 exec "$bun" "$checkout/src/cli.ts" "$@"

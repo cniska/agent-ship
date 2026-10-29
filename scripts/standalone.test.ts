@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 const ROOT = join(import.meta.dir, "..");
 
-const GUARDED_DIRS = ["src", "acceptance", "scripts", "bin", "docs"];
+const GUARDED_DIRS = ["src", "acceptance", "scripts", "bin", "npm", "docs"];
 
 const SELF = "scripts/standalone.test.ts";
 

@@ -1,6 +1,7 @@
 {
   "name": "@cniska/agent-ship",
   "version": "0.0.0",
+  "private": true,
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -10,13 +11,6 @@
   "bin": {
     "agent-ship": "bin/agent-ship"
   },
-  "files": [
-    "bin/",
-    "src/*.ts",
-    "!src/*.test.ts",
-    "!src/*.test-support.ts",
-    "!src/test-env.ts"
-  ],
   "scripts": {
     "format": "oxfmt src acceptance scripts",
     "lint": "oxlint --type-aware --deny-warnings src acceptance scripts && oxfmt --check src acceptance scripts && actionlint",
