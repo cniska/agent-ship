@@ -6,7 +6,8 @@
     "scripts/**/*.ts"
   ],
   "ignoreBinaries": [
-    "actionlint"
+    "actionlint",
+    "shellcheck"
   ],
   "entry": [
     "src/cli.ts",
