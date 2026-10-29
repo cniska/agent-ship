@@ -83,7 +83,7 @@ export function deniedNetwork(command: readonly string[]): readonly string[] {
   return [
     firstOnPath("unshare", searched),
     "--user",
-    "--map-current-user",
+    "--map-root-user",
     "--net",
     "--",
     "/bin/sh",
