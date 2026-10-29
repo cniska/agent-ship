@@ -1,18 +1,35 @@
 # Releasing
 
-How a project releases through agent-ship's reusable workflow, and how agent-ship releases itself. [`SPEC.md`](../SPEC.md) states what must hold; the workflow is specified and not yet built.
+How a project releases through agent-ship's reusable workflow, and how agent-ship releases itself. [`SPEC.md`](../SPEC.md) states what must hold.
 
 ## The reusable workflow
 
-`.github/workflows/release.yml` runs when another workflow calls it, and when a `v*` tag is pushed to agent-ship itself. It reads the caller's `ship.toml` and, for the pushed tag:
+`.github/workflows/release.yml` runs when another workflow calls it, and when a `v*` tag is pushed to agent-ship itself. It checks out the caller's repository at the tag, and agent-ship at the commit of the workflow it runs.
 
-1. Refuses `tag_mismatch` when the tag is not the version source's release tag, and `missing_credential` when a credential a channel names is not set, before it builds or publishes anything.
-2. Masks each credential value it reads before any step that could print it.
-3. For `github-release`, builds the channel's files, attests the build provenance of each, creates the tag's release as a draft with every file attached, and publishes it only once every file is attached.
-4. For `npm`, publishes each package with provenance through npm's trusted publishing, with no npm token, then installs the published version from the registry and runs the channel's smoke command against it.
-5. For `homebrew`, once the release is published, dispatches the tap to repin the formula to the version.
+| Job | Does |
+| --- | --- |
+| Plan | Refuses `tag_mismatch`, `missing_credential` or `package_not_tracked` before anything is built or published, and decides each channel's stage |
+| GitHub release | Runs the channel's `build`, attests the build provenance of each file, creates the tag's release as a draft with every file, then publishes it in a later step |
+| npm | Publishes each package with provenance through npm's trusted publishing, with no npm token, waits until the registry serves it, installs it and runs the channel's `smoke` command |
+| Homebrew | Once the release is published, or when no release needs publishing, dispatches the tap to repin the formula |
 
-A channel that already serves the version is skipped, so rerunning the workflow on the same tag publishes nothing twice and reaches each channel still missing.
+Every job masks every secret value first; a channel's job sees only the credentials that channel names.
+
+### Stages
+
+The plan gives each channel kind one stage:
+
+- **`publish`** when the channel does not serve the version, as [Status](commands.md#status) defines served, or when the plan cannot read it.
+- **`served`** when it does; its job is skipped.
+- **`absent`** when `ship.toml` names no such channel.
+
+A rerun on the same tag publishes nothing twice. The release job attaches to an already published release only the files it lacks, and deletes a draft an earlier run left. The npm job skips each package the registry already serves.
+
+### What a channel needs
+
+- **Credentials.** The plan finds a credential among the secrets the caller passes, by its exact name. A file credential is checked only as set; the workflow does not write it to a file.
+- **npm packages.** Each package in `packages` is published from the directory of the tracked `package.json` that names it.
+- **The tap.** The dispatch is the `formula-release` event on the tap. Its payload holds `formula`, the formula file's name without `.rb`; `ref`, the tag; and `version`. The tap's own workflow repins the formula.
 
 ## Calling it
 
@@ -45,6 +62,14 @@ jobs:
 
 A tag that published nothing can be deleted and made again once the fix is on the release branch. Once a tag has published anything, the fix goes out as a new, higher version; a tag is never moved.
 
+## agent-ship's own release
+
+agent-ship's `ship.toml` names three channels:
+
+- **`github-release`**: `scripts/build` compiles `agent-ship` for `darwin-arm64` and `linux-x64` into tarballs in `dist/`, with their `SHA256SUMS.txt`.
+- **`npm`**: the package `@cniska/agent-ship`. Its `bin/agent-ship` runs the CLI with mise's Bun in a checkout, and with the Bun on `PATH` once installed from npm.
+- **`homebrew`**: `Formula/agent-ship.rb` in `cniska/homebrew-tap`, dispatched with `TAP_DISPATCH_TOKEN`.
+
 ## The owner's setup, once
 
 For each project, and for agent-ship itself:
@@ -52,5 +77,6 @@ For each project, and for agent-ship itself:
 1. Publish each npm package once by hand, so trusted publishing can be set on it.
 2. On npmjs.com, add a trusted publisher to each package: GitHub Actions, the project's repository, workflow `release.yml`.
 3. In the project's Actions secrets, add each credential `ship.toml` names, such as `TAP_DISPATCH_TOKEN`, a fine-grained token on the tap with Contents read and write.
+4. For a `homebrew` channel, add the formula to the tap: the dispatch repins a formula and creates none.
 
 Run `agent-ship doctor` in the checkout to see which credentials are present and where each comes from.

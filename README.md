@@ -11,7 +11,7 @@ agent-ship releases a project to its GitHub release, npm and a Homebrew tap from
 - The pushed tag runs the project's `release.yml`, which calls agent-ship's reusable workflow to publish to each channel.
 - `agent-ship status <tag>` says whether each channel serves the version, and `agent-ship doctor` reports each credential the channels need and where it comes from.
 
-The commands and the workflow are specified in [`SPEC.md`](SPEC.md) and being built; the CLI prints only its command listing so far.
+[`SPEC.md`](SPEC.md) states what the commands and the workflow must do.
 
 ## Install
 
@@ -38,7 +38,7 @@ A release needs credentials on the machine and in CI. `ship.toml` names each one
 | `agent-ship check [<app>]` | Judge whether HEAD is ready to release and report the bump its commits warrant, changing nothing |
 | `agent-ship release [<patch\|minor\|major\|<version>>] [<app>] [--dry-run]` | Bump the version, commit and tag the release, and print the push command, or with `--dry-run` print what it would do |
 | `agent-ship status <tag>` | Wait on the runs the tag started and say whether each channel serves the tag's version |
-| `agent-ship doctor` | Name each credential the channels need, whether it is set, and the fix for each one missing |
+| `agent-ship doctor` | Check git, `gh` and each credential the channels need, with the fix for each that fails |
 | `agent-ship`, `agent-ship --help` | List the commands and flags |
 | `agent-ship --version` | Print the version |
 

@@ -1,6 +1,6 @@
 # agent-ship
 
-Checks, cuts and ships a release to every channel a project ships to, from one config file per repository. [`SPEC.md`](SPEC.md) states what must hold and is the source of truth; it changes in the same commit as the behavior it describes. [`README.md`](README.md) has the install and a summary of every command, [`docs/commands.md`](docs/commands.md) every command, its output and refusals, and `ship.toml`, [`docs/releasing.md`](docs/releasing.md) the reusable release workflow, and [`src/README.md`](src/README.md) maps the modules and the boundaries between them.
+Checks, makes and publishes a release to every channel a project ships to, from one config file per repository. [`SPEC.md`](SPEC.md) states what must hold and is the source of truth; it changes in the same commit as the behavior it describes. [`README.md`](README.md) has the install and a summary of every command, [`docs/commands.md`](docs/commands.md) every command, its output and refusals, and `ship.toml`, [`docs/releasing.md`](docs/releasing.md) the reusable release workflow, and [`src/README.md`](src/README.md) maps the modules and the boundaries between them.
 
 ## Rules
 

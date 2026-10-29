@@ -1,6 +1,6 @@
 # Commands
 
-The `agent-ship` commands, their output and refusals, and the `ship.toml` they read. [`SPEC.md`](../SPEC.md) states what must hold; the CLI prints only its command listing until the commands are built.
+The `agent-ship` commands, their output and refusals, and the `ship.toml` they read. [`SPEC.md`](../SPEC.md) states what must hold.
 
 Each command prints [TOON](https://toonformat.dev): a result on stdout, or an error on stderr naming the act that resolves it, each beside the command's name and `ok`.
 
@@ -34,6 +34,30 @@ Once a release is made and more commits land, the version's tag is behind HEAD. 
 ## Warnings
 
 `check` warns on each line holding `TODO` or `FIXME` as a whole word in a tracked file, except test files, Markdown files and the `notes` paths. A test file has a path segment `test`, `tests` or `__tests__`, or a name holding `.test.` or `.spec.`. A warning refuses nothing.
+
+## Status
+
+`status <tag>` reads the workflows in `.github/workflows` at the tag's commit and waits on each one whose push trigger runs on the tag.
+
+A push trigger runs on the tag when:
+
+- It names no `tags`, `tags-ignore`, `branches` or `branches-ignore` filter.
+- It names `tags`, and the tag matches them.
+- It names `tags-ignore` and no `tags`, and the tag does not match them.
+
+In a pattern, `*` matches within one segment and `**` across segments, and a later `!` pattern negates an earlier match. A `.yml` or `.yaml` file that does not parse as a workflow counts as running on the tag.
+
+For each such workflow, `status` reads the latest run that the tag's push started, every 30 seconds, until each has finished or 60 minutes have passed.
+
+Then it reads each channel of the tag's app:
+
+| Channel | Served when |
+| --- | --- |
+| `github-release` | The tag has a published release, not a draft, holding a file of each name in `files` |
+| `npm` | The registry lists the version for every package in `packages`; the registry is `npm_config_registry` when set, else `https://registry.npmjs.org` |
+| `homebrew` | The tap's `formula` file has at least one `url`, each `url` holds `/releases/download/<tag>/`, and a `version` line, if it has one, is the version |
+
+A channel is `unreadable` when `gh` or the registry gives no answer agent-ship can read, and `missing` otherwise.
 
 ## Errors
 
