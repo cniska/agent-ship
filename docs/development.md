@@ -25,6 +25,7 @@ mise trust && mise install
 - `.github/actionlint.yaml` ignores, in `release.yml` only, the `job.workflow_repository` and `job.workflow_sha` properties: GitHub documents them, and actionlint does not know them yet.
 - `bun run format` formats the sources with oxfmt.
 - `bun run acceptance` runs the acceptance suite. Each acceptance test gets 20 seconds rather than Bun's default 5, since one drives git and the CLI many times.
+- On Linux, the tests deny the CLI the network inside an unprivileged user namespace, which Ubuntu's AppArmor refuses by default; `check.yml` lifts that restriction on its runners first.
 - `src/spec.test.ts`, in the check, ties [`SPEC.md`](../SPEC.md) to the acceptance suite: every requirement is cited by a criterion, and every criterion has a test whose name starts with its id, except those it lists as not built yet. A criterion's test lands in the same commit that drops it from that list.
 
 ## Rules
