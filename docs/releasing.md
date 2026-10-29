@@ -23,7 +23,11 @@ The plan gives each channel kind one stage:
 - **`served`** when it does; its job is skipped.
 - **`absent`** when `ship.toml` names no such channel.
 
+### Reruns and concurrent runs
+
 A rerun on the same tag publishes nothing twice. The release job attaches to an already published release only the files it lacks, and deletes a draft an earlier run left. The npm job skips each package the registry already serves.
+
+Two runs of one tag never publish at once. The workflow holds the concurrency group `agent-ship-release-<repository>-<ref>` and never cancels a run in progress. A called workflow sees the caller's `github` context, so a caller group of the same name would make the called workflow wait on its own caller. The caller in [Calling it](#calling-it) names its group `release-<ref>`.
 
 ### What a channel needs
 
@@ -35,7 +39,7 @@ A rerun on the same tag publishes nothing twice. The release job attaches to an 
 
 ## Calling it
 
-A project's own `.github/workflows/release.yml` runs on its release tags and calls the reusable workflow pinned to the full commit sha of an agent-ship release tag, with that tag's version as the trailing comment. It passes its secrets, and grants the permission to request an OIDC token that npm's trusted publishing and the attestations need.
+A project's own `.github/workflows/release.yml` runs on its release tags and calls the reusable workflow pinned to the full commit sha of an agent-ship release tag, with that tag's version as the trailing comment. It passes its secrets and grants the permission to request an OIDC token that npm's trusted publishing and the attestations need. It holds a concurrency group of its own per ref, so a second run of one tag waits for the first.
 
 ```yaml
 name: Release
@@ -43,6 +47,10 @@ name: Release
 on:
   push:
     tags: ["v*"]
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:

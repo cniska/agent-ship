@@ -52,10 +52,14 @@ function index(steps: readonly Table[], matches: (step: Table) => boolean, what:
 
 const running = (fragment: string) => (step: Table) => textAt(step, "run").includes(fragment);
 
-test("AC-24 the reusable workflow runs when called and on a pushed v* tag, and the npm job may request an OIDC token", () => {
+test("AC-24 the reusable workflow runs when called and on a pushed v* tag, one run per tag at a time, and the npm job may request an OIDC token", () => {
   const on = tableAt(workflow, "on");
   expect(Object.keys(on).toSorted()).toEqual(["push", "workflow_call"]);
   expect(on.push).toEqual({ tags: ["v*"] });
+  expect(tableAt(workflow, "concurrency")).toEqual({
+    group: "agent-ship-release-${{ github.repository }}-${{ github.ref }}",
+    "cancel-in-progress": false,
+  });
   expect(tableAt(tableAt(jobs, "npm"), "permissions")["id-token"]).toBe("write");
 });
 
