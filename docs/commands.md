@@ -2,7 +2,7 @@
 
 The `agent-ship` commands, their output and refusals, and the `ship.toml` they read. [`SPEC.md`](../SPEC.md) states what must hold.
 
-Each command prints [TOON](https://toonformat.dev): a result on stdout, or an error on stderr naming the act that resolves it, each beside the command's name and `ok`. `notice` prints its note as plain text instead, and its usage errors as TOON.
+Each command prints [TOON](https://toonformat.dev): a result on stdout, or an error on stderr naming the act that resolves it, each beside the command's name and `ok`. `notice` prints its note as plain text instead of a result.
 
 | Command | Does |
 | --- | --- |
@@ -95,7 +95,7 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 | `binary_failed` | The npm launcher finds a platform package whose binary is not executable |
 | `unknown_command` | The command is not `check`, `release`, `status`, `doctor` or `notice`; a usage error |
 | `wrong_arity` | `--help` or `--version` is given an argument; a usage error |
-| `bad_arguments` | An argument is missing, empty, extra or unknown; an app is missing, unknown or given where there are none (a first argument to `release` that is neither a level nor `x.y.z` is an app); or a tag matches no tag pattern; a usage error |
+| `bad_arguments` | An argument is missing, empty, extra or unknown; an app is missing, unknown or given where there are none (a first argument to `release` that is neither a level nor `x.y.z` is an app); a tag matches no tag pattern; or `notice` is given a program that is not a plain file name or a repository not in the form `<owner>/<repo>`; a usage error |
 | `not_a_checkout` | The command runs outside a git checkout |
 | `config_missing` | The checkout has no `ship.toml` |
 | `secret_in_config` | A `ship.toml` value has the form of a GitHub token, an npm token or a private key |
