@@ -17,7 +17,7 @@ const NAMED_COMMAND = /`agent-ship ([^`]+)`/g;
 
 afterEach(removeScratchDirs);
 
-function stubAgentShip(noticeBody: string): string {
+function stubAgentShip(): string {
   const bin = join(scratchDir(), "bin");
   mkdirSync(bin);
   const program = join(bin, "agent-ship");
@@ -27,8 +27,7 @@ function stubAgentShip(noticeBody: string): string {
       "#!/bin/sh",
       'case "$1" in',
       "  --version) echo 1.0.0 ;;",
-      `  notice) ${noticeBody} ;;`,
-      "  *) exit 2 ;;",
+      '  *) echo "ran agent-ship $*" ;;',
       "esac",
       "",
     ].join("\n"),
@@ -74,18 +73,8 @@ describe("the cniska-ship plugin", () => {
     for (const word of ["publish", "testflight", "play", "developer-id"]) expect(NOTE).not.toContain(word);
   });
 
-  test("prints the note and agent-ship's own update notice", () => {
-    const bin = stubAgentShip('echo "upgrade $2 from $3"');
-    expect(hook(`${bin}:${SYSTEM_PATH}`)).toEqual({
-      status: 0,
-      stdout: `${NOTE}\nupgrade agent-ship from cniska/agent-ship\n`,
-      stderr: "",
-    });
-  });
-
-  test("prints only the note when no newer agent-ship is out, or when agent-ship has no notice", () => {
-    for (const body of ["exit 0", "echo bad_arguments >&2; exit 2"])
-      expect(hook(`${stubAgentShip(body)}:${SYSTEM_PATH}`)).toEqual({ status: 0, stdout: NOTE, stderr: "" });
+  test("prints only the note, running no agent-ship command but --version", () => {
+    expect(hook(`${stubAgentShip()}:${SYSTEM_PATH}`)).toEqual({ status: 0, stdout: NOTE, stderr: "" });
   });
 
   test("prints nothing without agent-ship on PATH", () => {

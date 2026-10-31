@@ -23,7 +23,7 @@ test("AC-27 no command and --help list the commands and flags, --version prints 
     expect(ran.stdout.startsWith("command: agent-ship\n")).toBe(true);
     const listing = result(ran);
     const commands = shownList(listing.commands);
-    expect(commands.map(({ name }) => name)).toEqual(["check", "release", "status", "doctor", "notice"]);
+    expect(commands.map(({ name }) => name)).toEqual(["check", "release", "status", "doctor"]);
     expect(shownList(listing.flags).map(({ name }) => name)).toEqual(["--help", "--version"]);
     for (const entry of [...commands, ...shownList(listing.flags)]) {
       expect(String(entry.usage)).toStartWith("agent-ship ");

@@ -35,7 +35,6 @@ describe("the preloaded test environment", () => {
       process.env.XDG_DATA_HOME,
       process.env.XDG_CONFIG_HOME,
       process.env.XDG_STATE_HOME,
-      process.env.XDG_CACHE_HOME,
     ]) {
       expect(dir).toBeString();
       expect(dir?.startsWith(account)).toBe(false);

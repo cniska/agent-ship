@@ -2,7 +2,7 @@
 
 The `agent-ship` commands, their output and refusals, and the `ship.toml` they read. [`SPEC.md`](../SPEC.md) states what must hold.
 
-Each command prints [TOON](https://toonformat.dev): a result on stdout, or an error on stderr naming the act that resolves it, each beside the command's name and `ok`. `notice` prints its note as plain text instead of a result.
+Each command prints [TOON](https://toonformat.dev): a result on stdout, or an error on stderr naming the act that resolves it, each beside the command's name and `ok`.
 
 | Command | Does |
 | --- | --- |
@@ -11,7 +11,6 @@ Each command prints [TOON](https://toonformat.dev): a result on stdout, or an er
 | `agent-ship release --dry-run` | Refuse as `release` would, without running the project's check command, or print the version, the tag, the commit's subject and the push command; change nothing |
 | `agent-ship status <tag>` | Wait up to 60 minutes for a finished run of each workflow the tag's push triggers, and report each run `passed`, `failed`, `running` or `missing`; report each channel of the tag's app as `served`, `missing`, or `unreadable` with the reason; exit 1 when a run is not `passed` or a channel is not `served` |
 | `agent-ship doctor` | Report git and `gh` on `PATH`, and each credential the channels name, with the channels that read it, whether it is present and its source; each check `ok`, `warn` or `fail` with its fix; exit 1 when one fails |
-| `agent-ship notice <program> <owner>/<repo>` | Print a [note](#notice) when a newer release of the copy of `<program>` on `PATH` is out, naming the upgrade for the channel it came from, and nothing otherwise; always exit 0 but on a usage error or a fault |
 | `agent-ship`, `agent-ship --help` | List each command and flag with its usage and summary |
 | `agent-ship --version` | Print the version alone on one line, not as TOON |
 
@@ -60,30 +59,6 @@ Then it reads each channel of the tag's app:
 
 A channel is `unreadable` when `gh` or the registry gives no answer agent-ship can read, and `missing` otherwise.
 
-## Notice
-
-`notice <program> <owner>/<repo>` is for a plugin's session-start hook, as [Releasing](releasing.md#the-update-notice) shows. It reads the channel from the real path of the copy of `<program>` first on `PATH`, links followed:
-
-| The copy is in | Channel | Newest version | Upgrade |
-| --- | --- | --- | --- |
-| `…/Cellar/<formula>/<version>/`, whose `INSTALL_RECEIPT.json` names its tap | Homebrew | The tag every `url` of the tap's `Formula/<formula>.rb` downloads from | `brew upgrade <tap>/<formula>` |
-| `…/install/global/node_modules/<package>/` | bun | The registry's `latest` dist-tag | `bun add --global <package>@latest` |
-| `…/lib/node_modules/<package>/` | npm | The registry's `latest` dist-tag | `npm install --global <package>@latest` |
-| `$HOME/.local/bin`, on `darwin-arm64` or `linux-x64` | GitHub release | The tag of `<owner>/<repo>`'s latest release | Download `<program>-<platform>.tar.gz` and `SHA256SUMS.txt` with curl, check the sums, unpack and move `<program>` over the copy |
-
-Homebrew's and the GitHub release's newest versions come from GitHub's API, at `GITHUB_API_URL` when it is set, without `gh`; the registry is `npm_config_registry` when set.
-
-When the newest version is above the one the copy prints for `--version`, `notice` prints one paragraph: the program, both versions, the upgrade command, and the instruction to run it now, or, when the upgrade is refused as a third-party install, to hand the owner that exact command rather than retry it.
-
-`notice` prints nothing, and exits 0, when:
-
-- the program is not on `PATH`, or its copy is anywhere else, a checkout among them; the program is then not run
-- `--version` prints anything but the version `x.y.z` alone, or takes more than 2 seconds
-- the lookup fails: unreachable, over 2 seconds, answered with a status other than success, such as a rate limit, or answered with what it cannot read
-- the copy is current
-
-It asks the network at most once a day per program. Each lookup's time and result go to `agent-ship/notice/<program>.json` under `$XDG_CACHE_HOME`, else `~/.cache`, and `notice` answers from that record for 24 hours while it names the same channel. A failed lookup is kept with its cause, `timeout`, `unreachable`, `http_<status>` or `unparsable`, so it is not retried within the day.
-
 ## Errors
 
 An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 for a refusal, 2 for a usage error and 3 for a fault.
@@ -93,9 +68,9 @@ An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 
 | `no_build_for_platform` | The npm launcher runs on a platform with no platform package |
 | `platform_package_missing` | The npm launcher finds no platform package installed beside it |
 | `binary_failed` | The npm launcher finds a platform package whose binary is not executable |
-| `unknown_command` | The command is not `check`, `release`, `status`, `doctor` or `notice`; a usage error |
+| `unknown_command` | The command is not `check`, `release`, `status` or `doctor`; a usage error |
 | `wrong_arity` | `--help` or `--version` is given an argument; a usage error |
-| `bad_arguments` | An argument is missing, empty, extra or unknown; an app is missing, unknown or given where there are none (a first argument to `release` that is neither a level nor `x.y.z` is an app); a tag matches no tag pattern; or `notice` is given a program that is not a plain file name or a repository not in the form `<owner>/<repo>`; a usage error |
+| `bad_arguments` | An argument is missing, empty, extra or unknown; an app is missing, unknown or given where there are none (a first argument to `release` that is neither a level nor `x.y.z` is an app); or a tag matches no tag pattern; a usage error |
 | `not_a_checkout` | The command runs outside a git checkout |
 | `config_missing` | The checkout has no `ship.toml` |
 | `secret_in_config` | A `ship.toml` value has the form of a GitHub token, an npm token or a private key |

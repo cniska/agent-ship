@@ -1,10 +1,8 @@
 import { type ParseArgsOptionsConfig, parseArgs } from "node:util";
 import { check } from "./check";
-import { type Command, PROGRAM, type Runtime, usageError } from "./cli-contract";
+import { type Command, type Outcome, PROGRAM, type Runtime, usageError } from "./cli-contract";
 import { messageOf } from "./coded-error";
 import { doctor, failed as doctorFailed } from "./doctor";
-import { isProgramName, isRepoName, notice } from "./notice";
-import type { Outcome } from "./output";
 import { appOfTag, type Checkout, chooseApp, openCheckout, type Project } from "./project";
 import { rehearse, release, type Target } from "./release";
 import { failed as statusFailed, status } from "./status";
@@ -65,7 +63,7 @@ function projectFor(command: Command, checkout: Checkout, app: string | null): P
 }
 
 function succeeded(value: unknown): Outcome {
-  return { kind: "result", value, status: 0 };
+  return { value, status: 0 };
 }
 
 const checkCommand: Command = {
@@ -110,7 +108,7 @@ const statusCommand: Command = {
       { ...checkout, app: chosen.app },
       { tag, version: chosen.version, registry, clock },
     );
-    return { kind: "result", value: report, status: statusFailed(report) ? 1 : 0 };
+    return { value: report, status: statusFailed(report) ? 1 : 0 };
   },
 };
 
@@ -122,34 +120,8 @@ const doctorCommand: Command = {
     const { positionals } = argumentsOf(this, args, NO_OPTIONS);
     atMost(this, positionals, 0);
     const report = doctor(runtime.cwd, runtime.processEnv);
-    return { kind: "result", value: report, status: doctorFailed(report) ? 1 : 0 };
+    return { value: report, status: doctorFailed(report) ? 1 : 0 };
   },
 };
 
-const noticeCommand: Command = {
-  name: "notice",
-  usage: `${PROGRAM} notice <program> <owner>/<repo>`,
-  summary: "print a note when a newer release of the program on PATH is out, and nothing otherwise",
-  async run(args: readonly string[], runtime: Runtime): Promise<Outcome> {
-    const { positionals } = argumentsOf(this, args, NO_OPTIONS);
-    const [program, repo] = positionals;
-    if (program === undefined || repo === undefined)
-      return refuseArguments(this, "needs the program and its GitHub repository");
-    atMost(this, positionals, 2);
-    if (!isProgramName(program)) return refuseArguments(this, `${program} is not a program name`);
-    if (!isRepoName(repo)) return refuseArguments(this, `${repo} is not a GitHub repository <owner>/<repo>`);
-    const text = await notice(
-      { program, repo },
-      { ...runtime.notice, env: runtime.processEnv, registry: runtime.registry, now: runtime.clock.now },
-    );
-    return { kind: "text", text };
-  },
-};
-
-export const COMMANDS: readonly Command[] = [
-  checkCommand,
-  releaseCommand,
-  statusCommand,
-  doctorCommand,
-  noticeCommand,
-];
+export const COMMANDS: readonly Command[] = [checkCommand, releaseCommand, statusCommand, doctorCommand];

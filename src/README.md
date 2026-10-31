@@ -34,7 +34,6 @@ Another module reaches a module only through its bare-named file, so a module's 
 | `targets`     | The release workflow's per-target builds: each target's files put at their paths, refusing two that differ |
 | `status`      | The `status` command: the tag's workflow runs, waited on, and each channel's state                         |
 | `doctor`      | The `doctor` command: git and `gh` on `PATH`, and each credential the channels name                        |
-| `notice`      | The `notice` command: the installed copy's channel, its newest version, the day's record and the note      |
 
 ## Where to start
 

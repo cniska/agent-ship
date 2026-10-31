@@ -118,23 +118,6 @@ agent-ship's `ship.toml` names three channels:
   - The smoke checks that `agent-ship --version` prints the version under release, with no Node on `PATH`.
 - **`homebrew`**: `Formula/agent-ship.rb` in `cniska/homebrew-tap`, dispatched with `TAP_DISPATCH_TOKEN`.
 
-## The update notice
-
-A project that ships through agent-ship turns on its update notice with one line and no code of its own: a session-start hook in its Claude Code plugin's `plugin/hooks/hooks.json`, under the `startup|resume|clear|compact` matcher:
-
-```json
-{ "type": "command", "command": "agent-ship notice <program> <owner>/<repo> 2>/dev/null || true" }
-```
-
-At each session start, when a newer release of `<program>` is out, the agent reads a note naming the installed and newest versions and the one command that upgrades the copy through the channel it came from, and runs it. On a machine without agent-ship, or with an agent-ship too old to have `notice`, the line prints nothing. [Notice](commands.md#notice) says how the channel is read and when it stays silent.
-
-The program prints its version alone, `x.y.z`, for `--version`; a copy that prints anything else gets no notice.
-
-A GitHub-release install gets the notice when it follows two conventions:
-
-- The release holds `<program>-<target>.tar.gz`, with `<program>` at its root, for `darwin-arm64` and `linux-x64`, and `SHA256SUMS.txt` lists each tarball, as agent-ship's own `assemble` writes it.
-- The install puts `<program>` in `$HOME/.local/bin`. A copy anywhere else gets no notice.
-
 ## The owner's setup, once
 
 For each project, and for agent-ship itself:

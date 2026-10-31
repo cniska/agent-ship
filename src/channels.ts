@@ -36,8 +36,6 @@ export type Reach = {
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 
-const GITHUB_API = "https://api.github.com";
-
 const TRAILING_SLASH = /\/+$/;
 
 const SERVED: Found = { state: "served" };
@@ -58,10 +56,6 @@ const RELEASE_DOWNLOAD = /\/releases\/download\/([^/]+)\//;
 
 export function registryOf(configured: string | undefined): string {
   return (configured || NPM_REGISTRY).replace(TRAILING_SLASH, "");
-}
-
-export function githubApiOf(configured: string | undefined): string {
-  return (configured || GITHUB_API).replace(TRAILING_SLASH, "");
 }
 
 function releaseOf(value: unknown): Release | null {

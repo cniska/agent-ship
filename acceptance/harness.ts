@@ -37,8 +37,6 @@ export type World = {
   readonly registry: string;
   readonly registryLog: string;
   readonly tap: string;
-  readonly github: string;
-  readonly githubLog: string;
 };
 
 export type Ran = { readonly exitCode: number; readonly stdout: string; readonly stderr: string };
@@ -117,12 +115,7 @@ export function binWith(
 export function world(): World {
   const root = scratchDir();
   const home = join(root, "home");
-  const xdg = {
-    XDG_DATA_HOME: "data",
-    XDG_CONFIG_HOME: "config",
-    XDG_STATE_HOME: "state",
-    XDG_CACHE_HOME: "cache",
-  };
+  const xdg = { XDG_DATA_HOME: "data", XDG_CONFIG_HOME: "config", XDG_STATE_HOME: "state" };
   for (const dir of [home, ...Object.values(xdg).map((name) => join(root, name))]) mkdirSync(dir);
   const bin = binWith(root, PROGRAMS);
   const launcher = deniedNetwork([process.execPath, LAUNCH]).map(quoted).join(" ");
@@ -135,12 +128,9 @@ export function world(): World {
     registry: join(stands, "registry"),
     registryLog: join(stands, "registry.log"),
     tap: join(stands, "tap"),
-    github: join(stands, "github"),
-    githubLog: join(stands, "github.log"),
   };
   mkdirSync(stand.registry, { recursive: true });
   mkdirSync(stand.tap);
-  mkdirSync(stand.github);
   writeFileSync(stand.ghState, "{}\n");
   return {
     root,
@@ -161,8 +151,6 @@ export function world(): World {
       GH_STAND_IN_TAP: stand.tap,
       REGISTRY_STAND_IN: stand.registry,
       REGISTRY_STAND_IN_LOG: stand.registryLog,
-      GITHUB_STAND_IN: stand.github,
-      GITHUB_STAND_IN_LOG: stand.githubLog,
     },
   };
 }
@@ -378,8 +366,4 @@ export function registryRequests(w: World): readonly string[] {
 
 export function tapHolds(w: World, tap: string, path: string, text: string): void {
   write(join(w.tap, tap), path, text);
-}
-
-export function githubRequests(w: World): readonly string[] {
-  return loggedLines(w.githubLog);
 }

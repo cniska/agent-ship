@@ -10,7 +10,6 @@ agent-ship releases a project to its GitHub release, npm and a Homebrew tap from
 - `agent-ship release` bumps the version by what the Conventional Commits since the previous tag warrant, commits and tags it, and prints the command that pushes it; the owner pushes.
 - The pushed tag runs the project's `release.yml`, which calls agent-ship's reusable workflow to publish to each channel.
 - `agent-ship status <tag>` says whether each channel serves the version, and `agent-ship doctor` reports each credential the channels need and where it comes from.
-- `agent-ship notice <program> <owner>/<repo>`, run from a plugin's session-start hook, tells the agent when a newer release of a tool is out and how to upgrade it.
 
 [`SPEC.md`](SPEC.md) states what the commands and the workflow must do.
 
@@ -30,19 +29,18 @@ With npm, which installs the package for your platform and needs no Bun:
 npm install --global @cniska/agent-ship
 ```
 
-From a [GitHub release](https://github.com/cniska/agent-ship/releases), verify the tarball before you unpack it into `$HOME/.local/bin`:
+From a [GitHub release](https://github.com/cniska/agent-ship/releases), verify the tarball before you unpack it:
 
 ```bash
 gh release download --repo cniska/agent-ship --pattern 'agent-ship-linux-x64.tar.gz' --pattern SHA256SUMS.txt
 shasum -a 256 --check --ignore-missing SHA256SUMS.txt
 gh attestation verify agent-ship-linux-x64.tar.gz --repo cniska/agent-ship
-mkdir -p "$HOME/.local/bin"
-tar -xzf agent-ship-linux-x64.tar.gz -C "$HOME/.local/bin"
+tar -xzf agent-ship-linux-x64.tar.gz
 ```
 
-Then put `$HOME/.local/bin` on your `PATH`. For a copy there, `agent-ship notice` [names the upgrade](docs/commands.md#notice).
+Then put `agent-ship` on your `PATH`.
 
-For Claude Code, the `cniska-ship` plugin tells each session how a release maps to these commands and when a newer agent-ship is out:
+For Claude Code, the `cniska-ship` plugin tells each session how a release maps to these commands:
 
 ```bash
 claude plugin install cniska-ship@cniska
@@ -64,7 +62,6 @@ A release needs credentials on the machine and in CI. `ship.toml` names each one
 | `agent-ship release [<patch\|minor\|major\|<version>>] [<app>] [--dry-run]` | Bump the version, commit and tag the release, and print the push command, or with `--dry-run` print what it would do |
 | `agent-ship status <tag>` | Wait on the runs the tag started and say whether each channel serves the tag's version |
 | `agent-ship doctor` | Check git, `gh` and each credential the channels need, with the fix for each that fails |
-| `agent-ship notice <program> <owner>/<repo>` | Print the upgrade command when a newer release of the program on `PATH` is out, and nothing otherwise |
 | `agent-ship`, `agent-ship --help` | List the commands and flags |
 | `agent-ship --version` | Print the version |
 
