@@ -22,13 +22,19 @@ export type Spawned =
 
 export type ExecOptions = { readonly cwd: string; readonly env: ProcessEnv };
 
-export function spawnProgram(program: string, args: readonly string[], options: ExecOptions): Spawned {
+export function spawnProgram(
+  program: string,
+  args: readonly string[],
+  options: ExecOptions,
+  limitMs: number | null = null,
+): Spawned {
   const run = spawnSync(program, [...args], {
     cwd: options.cwd,
     env: options.env,
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     maxBuffer: Number.POSITIVE_INFINITY,
+    ...(limitMs === null ? {} : { timeout: limitMs, killSignal: "SIGKILL" }),
   });
   if (run.error) return { started: false, detail: run.error.message };
   return { started: true, status: run.status ?? SIGNALLED_STATUS, stdout: run.stdout, stderr: run.stderr };

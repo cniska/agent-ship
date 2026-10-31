@@ -24,6 +24,7 @@ const SCRATCH_DIRS = {
   XDG_CONFIG_HOME: "config",
   XDG_DATA_HOME: "data",
   XDG_STATE_HOME: "state",
+  XDG_CACHE_HOME: "cache",
 } as const;
 
 for (const [variable, dir] of Object.entries(SCRATCH_DIRS)) {

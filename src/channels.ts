@@ -36,6 +36,8 @@ export type Reach = {
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 
+const GITHUB_API = "https://api.github.com";
+
 const TRAILING_SLASH = /\/+$/;
 
 const SERVED: Found = { state: "served" };
@@ -52,8 +54,14 @@ const FORMULA_URL = /^\s*url\s+"([^"]+)"/gm;
 
 const FORMULA_VERSION = /^\s*version\s+"([^"]+)"/m;
 
+const RELEASE_DOWNLOAD = /\/releases\/download\/([^/]+)\//;
+
 export function registryOf(configured: string | undefined): string {
   return (configured || NPM_REGISTRY).replace(TRAILING_SLASH, "");
+}
+
+export function githubApiOf(configured: string | undefined): string {
+  return (configured || GITHUB_API).replace(TRAILING_SLASH, "");
 }
 
 function releaseOf(value: unknown): Release | null {
@@ -137,11 +145,18 @@ async function packagesServe(reach: Reach, packages: readonly string[]): Promise
   );
 }
 
+export function formulaTag(formula: string): string | null {
+  const tags = [...formula.matchAll(FORMULA_URL)].map(
+    (match) => RELEASE_DOWNLOAD.exec(match[1] ?? "")?.[1] ?? null,
+  );
+  const [first = null] = tags;
+  return tags.every((tag) => tag === first) ? first : null;
+}
+
 function pins(formula: string, tag: string, version: string): boolean {
-  const urls = [...formula.matchAll(FORMULA_URL)].map((match) => match[1] ?? "");
   const stated = FORMULA_VERSION.exec(formula)?.[1] ?? null;
   if (stated !== null && stated !== version) return false;
-  return urls.length > 0 && urls.every((url) => url.includes(`/releases/download/${tag}/`));
+  return formulaTag(formula) === tag;
 }
 
 function formulaServes(reach: Reach, tap: string, formula: string): Found {

@@ -1,6 +1,7 @@
 import { usageErrors } from "./coded-error";
 import type { ProcessEnv } from "./exec";
-import type { ResultStatus } from "./output";
+import type { NoticeSetting } from "./notice";
+import type { Outcome } from "./output";
 import type { Clock } from "./status";
 
 export const PROGRAM = "agent-ship";
@@ -10,9 +11,8 @@ export type Runtime = {
   readonly processEnv: ProcessEnv;
   readonly registry: string;
   readonly clock: Clock;
+  readonly notice: NoticeSetting;
 };
-
-export type Outcome = { readonly value: unknown; readonly status: ResultStatus };
 
 export type Command = {
   readonly name: string;

@@ -1,4 +1,4 @@
-let now = Date.now();
+let now = Date.now() + Number(process.env.CLOCK_STAND_IN_OFFSET_MS ?? 0);
 
 Date.now = () => now;
 

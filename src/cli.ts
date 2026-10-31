@@ -1,11 +1,14 @@
 #!/usr/bin/env bun
 import { version } from "../package.json";
-import { registryOf } from "./channels";
+import { githubApiOf, registryOf } from "./channels";
 import { COMMANDS } from "./cli-commands";
-import { type Command, type Outcome, PROGRAM, type Runtime, usageError } from "./cli-contract";
-import { exitWithError, exitWithResult, exitWithVersion } from "./output";
+import { type Command, PROGRAM, type Runtime, usageError } from "./cli-contract";
+import { cacheDirOf, platformOf } from "./notice";
+import { exitWithError, exitWithOutcome, exitWithResult, exitWithVersion, type Outcome } from "./output";
 
 const HELP_FLAG = "--help";
+
+const LOOKUP_LIMIT_MS = 2000;
 
 const VERSION_FLAG = "--version";
 
@@ -19,6 +22,13 @@ const runtime: Runtime = {
   processEnv: process.env,
   registry: registryOf(process.env.npm_config_registry),
   clock: { now: () => Date.now(), sleep: (ms) => Bun.sleepSync(ms) },
+  notice: {
+    home: process.env.HOME || null,
+    cacheDir: cacheDirOf(process.env.XDG_CACHE_HOME, process.env.HOME),
+    platform: platformOf(process.platform, process.arch),
+    githubApi: githubApiOf(process.env.GITHUB_API_URL),
+    limitMs: LOOKUP_LIMIT_MS,
+  },
 };
 
 const [requested = HELP_FLAG, ...args] = process.argv.slice(2);
@@ -59,6 +69,4 @@ async function ranOrExited(chosen: Command): Promise<Outcome> {
   }
 }
 
-const { value, status } = await ranOrExited(command);
-
-exitWithResult(command.name, value, status);
+exitWithOutcome(command.name, await ranOrExited(command));

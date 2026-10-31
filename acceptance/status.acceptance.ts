@@ -70,11 +70,11 @@ const PASSED = [{ status: "completed", conclusion: "success" }];
 
 const RUNNING = [{ status: "in_progress", conclusion: "" }];
 
-function formula(tag: string, version: string): string {
+function formula(tag: string, version: string | null = null): string {
   const url = (file: string) => `https://github.com/owner/app/releases/download/${tag}/${file}`;
   return [
     "class App < Formula",
-    `  version "${version}"`,
+    ...(version === null ? [] : [`  version "${version}"`]),
     "  on_macos do",
     `    url "${url(ASSETS[0] ?? "")}"`,
     "  end",
@@ -100,7 +100,7 @@ function shippedRepo(
   });
   registryServes(w, "app", ["1.0.0", "1.0.1"]);
   registryServes(w, "@owner/app-core", ["1.0.0", "1.0.1"]);
-  tapHolds(w, "owner/homebrew-tap", "Formula/app.rb", formula("v1.0.1", "1.0.1"));
+  tapHolds(w, "owner/homebrew-tap", "Formula/app.rb", formula("v1.0.1"));
   return { w, dir };
 }
 
@@ -169,7 +169,7 @@ test("AC-21 each channel not serving the version is missing or unreadable with t
   expect(npm).toMatchObject({ state: "missing", detail: "@owner/app-core has no 1.0.1 on the registry" });
 
   const pinnedOld = shippedRepo();
-  tapHolds(pinnedOld.w, "owner/homebrew-tap", "Formula/app.rb", formula("v1.0.0", "1.0.0"));
+  tapHolds(pinnedOld.w, "owner/homebrew-tap", "Formula/app.rb", formula("v1.0.0"));
   const tap = channelOf(result(status(pinnedOld), 1).channels, "homebrew");
   expect(tap).toMatchObject({ state: "missing" });
   tapHolds(pinnedOld.w, "owner/homebrew-tap", "Formula/app.rb", formula("v1.0.1", "1.0.0"));
