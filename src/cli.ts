@@ -8,6 +8,8 @@ import { exitWithError, exitWithOutcome, exitWithResult, exitWithVersion, type O
 
 const HELP_FLAG = "--help";
 
+const VERSION_LIMIT_MS = 2000;
+
 const LOOKUP_LIMIT_MS = 2000;
 
 const VERSION_FLAG = "--version";
@@ -27,7 +29,8 @@ const runtime: Runtime = {
     cacheDir: cacheDirOf(process.env.XDG_CACHE_HOME, process.env.HOME),
     platform: platformOf(process.platform, process.arch),
     githubApi: githubApiOf(process.env.GITHUB_API_URL),
-    limitMs: LOOKUP_LIMIT_MS,
+    versionLimitMs: VERSION_LIMIT_MS,
+    lookupLimitMs: LOOKUP_LIMIT_MS,
   },
 };
 

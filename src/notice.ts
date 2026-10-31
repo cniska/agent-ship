@@ -14,7 +14,8 @@ export type NoticeSetting = {
   readonly cacheDir: string | null;
   readonly platform: Platform | null;
   readonly githubApi: string;
-  readonly limitMs: number;
+  readonly versionLimitMs: number;
+  readonly lookupLimitMs: number;
 };
 
 type NoticeAsked = { readonly program: string; readonly repo: string };
@@ -158,7 +159,12 @@ function installedPath(program: string, searched: string): string | null {
 }
 
 function installedVersion(path: string, reach: NoticeReach): Version | null {
-  const ran = spawnProgram(path, [VERSION_FLAG], { cwd: dirname(path), env: reach.env }, reach.limitMs);
+  const ran = spawnProgram(
+    path,
+    [VERSION_FLAG],
+    { cwd: dirname(path), env: reach.env },
+    reach.versionLimitMs,
+  );
   if (!ran.started || ran.status !== 0) return null;
   return parseVersion(ran.stdout.trim());
 }
@@ -201,7 +207,7 @@ function tableOf(text: string): Table | null {
 
 async function registryLatest(pkg: string, reach: NoticeReach): Promise<Found> {
   const url = `${reach.registry}/${pkg.replace("/", "%2f")}`;
-  const fetched = await fetchedWithin(url, null, reach.limitMs);
+  const fetched = await fetchedWithin(url, null, reach.lookupLimitMs);
   if (!fetched.ok) return fetched.found;
   const tags = tableOf(fetched.text)?.["dist-tags"];
   const latest = isTable(tags) && typeof tags.latest === "string" ? parseVersion(tags.latest) : null;
@@ -213,14 +219,14 @@ async function registryLatest(pkg: string, reach: NoticeReach): Promise<Found> {
 async function tapLatest(tap: string, formula: string, reach: NoticeReach): Promise<Found> {
   const [, owner, name] = TAP.exec(tap) ?? [];
   const url = `${reach.githubApi}/repos/${owner}/homebrew-${name}/contents/Formula/${formula}.rb`;
-  const fetched = await fetchedWithin(url, RAW, reach.limitMs);
+  const fetched = await fetchedWithin(url, RAW, reach.lookupLimitMs);
   if (!fetched.ok) return fetched.found;
   return releaseVersion(formulaTag(fetched.text), url);
 }
 
 async function releaseLatest(repo: string, reach: NoticeReach): Promise<Found> {
   const url = `${reach.githubApi}/repos/${repo}/releases/latest`;
-  const fetched = await fetchedWithin(url, GITHUB_JSON, reach.limitMs);
+  const fetched = await fetchedWithin(url, GITHUB_JSON, reach.lookupLimitMs);
   if (!fetched.ok) return fetched.found;
   return releaseVersion(tableOf(fetched.text)?.tag_name, url);
 }

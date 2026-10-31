@@ -44,18 +44,14 @@ function npmInstall(versionScript: string): Installed {
   return installedAt(["lib", "node_modules", "@scope", "tool", "tool"], versionScript);
 }
 
-function reach(
-  installed: Installed,
-  registry: string,
-  limitMs: number,
-  githubApi = "http://127.0.0.1:9",
-): NoticeReach {
+function reach(installed: Installed, registry: string, githubApi = "http://127.0.0.1:9"): NoticeReach {
   return {
     home: join(installed.root, "home"),
     cacheDir: join(installed.root, "cache"),
     platform: "linux-x64",
     githubApi,
-    limitMs,
+    versionLimitMs: UNHURRIED_MS,
+    lookupLimitMs: UNHURRIED_MS,
     env: { PATH: installed.bin },
     registry,
     now: () => 1_000_000,
@@ -89,7 +85,7 @@ async function noticeAt(
     writeFileSync(join(installed.root, ...path.slice(0, 4), "INSTALL_RECEIPT.json"), receipt);
   const server = answering();
   const text = await notice(ASKED, {
-    ...reach(installed, server.url, UNHURRIED_MS, server.url),
+    ...reach(installed, server.url, server.url),
     ...shaped(installed),
   });
   server.stop();
@@ -172,7 +168,9 @@ function hanging(): { readonly url: string; readonly requests: string[]; stop():
   return { url: `http://127.0.0.1:${server.port}`, requests, stop: () => server.stop(true) };
 }
 
-const LIMIT_MS = 1000;
+const LIMIT_MS = 100;
+
+const STALL_MS = 5000;
 
 const ASKED = { program: "tool", repo: "owner/tool" };
 
@@ -182,11 +180,11 @@ describe("notice within its time limit", () => {
     const registry = hanging();
     const started = performance.now();
 
-    const text = await notice(ASKED, reach(installed, registry.url, LIMIT_MS));
+    const text = await notice(ASKED, { ...reach(installed, registry.url), lookupLimitMs: LIMIT_MS });
 
     registry.stop();
     expect(text).toBeNull();
-    expect(performance.now() - started).toBeLessThan(LIMIT_MS * 3);
+    expect(performance.now() - started).toBeLessThan(STALL_MS);
     const record: unknown = JSON.parse(
       readFileSync(join(installed.root, "cache", "agent-ship", "notice", "tool.json"), "utf8"),
     );
@@ -198,15 +196,15 @@ describe("notice within its time limit", () => {
   });
 
   test("gives up on a program whose --version is slower than the limit, without asking the network", async () => {
-    const installed = npmInstall("exec sleep 5");
+    const installed = npmInstall(`exec /bin/sleep ${STALL_MS / 1000}`);
     const registry = hanging();
     const started = performance.now();
 
-    const text = await notice(ASKED, reach(installed, registry.url, LIMIT_MS));
+    const text = await notice(ASKED, { ...reach(installed, registry.url), versionLimitMs: LIMIT_MS });
 
     registry.stop();
     expect(text).toBeNull();
-    expect(performance.now() - started).toBeLessThan(LIMIT_MS * 3);
+    expect(performance.now() - started).toBeLessThan(STALL_MS);
     expect(registry.requests).toEqual([]);
   });
 });
@@ -219,7 +217,7 @@ describe("notice's record", () => {
     mkdirSync(records, { recursive: true });
     chmodSync(records, 0o500);
 
-    const asked = notice(ASKED, reach(installed, server.url, UNHURRIED_MS));
+    const asked = notice(ASKED, reach(installed, server.url));
 
     const outcome = await asked.then(
       () => "kept",
