@@ -42,6 +42,12 @@ tar -xzf agent-ship-linux-x64.tar.gz -C "$HOME/.local/bin"
 
 Then put `$HOME/.local/bin` on your `PATH`. For a copy there, `agent-ship notice` [names the upgrade](docs/commands.md#notice).
 
+For Claude Code, the `cniska-ship` plugin tells each session how a release maps to these commands and when a newer agent-ship is out:
+
+```bash
+claude plugin install cniska-ship@cniska
+```
+
 To run it from a checkout with Bun, follow [Development](docs/development.md).
 
 ## Why

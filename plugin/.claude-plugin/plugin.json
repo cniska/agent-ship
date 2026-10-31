@@ -1,0 +1,10 @@
+{
+  "name": "cniska-ship",
+  "description": "Tells every session that releases go through agent-ship and maps each step of the ship skill to the agent-ship command that does it: check, release, release --dry-run and status <tag>. Whenever a session starts, resumes, clears or compacts, it adds that note, and, when a newer agent-ship is out, the command that upgrades the installed copy. It needs the agent-ship CLI on PATH and does nothing without it.",
+  "author": {
+    "name": "Christoffer Niska"
+  },
+  "homepage": "https://github.com/cniska/agent-ship",
+  "repository": "https://github.com/cniska/agent-ship",
+  "license": "MIT"
+}

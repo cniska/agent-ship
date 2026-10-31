@@ -168,6 +168,7 @@ A project that ships to a GitHub release, npm and a Homebrew tap repeats the sam
 - **D-2** — The reusable workflow `.github/workflows/release.yml`, and agent-ship's first release, published by its own tag through that workflow from agent-ship's source to its GitHub release, npm, as `@cniska/agent-ship` and its two platform packages, and the Homebrew tap, with `status` reporting each channel `served`.
 - **D-3** — `README.md`, `AGENTS.md`, `src/README.md`, `docs/commands.md`, `docs/development.md`, `docs/releasing.md`, `CONTRIBUTING.md` and this spec.
 - **D-4** — The test suite, run by `bun run check`, and the acceptance suite, run by `bun run acceptance`, whose test names cite the criteria in §5.
+- **D-5** — The Claude Code plugin `cniska-ship` under `plugin/`: at each session start, when `agent-ship` is on `PATH`, it adds a note mapping each release step to `check`, `release`, `release --dry-run` or `status <tag>`, and runs `notice` for agent-ship itself.
 
 ## 7. Constraints (fixed)
 
