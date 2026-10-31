@@ -1,10 +1,13 @@
 import { afterEach, expect, test } from "bun:test";
+import { chmodSync, symlinkSync } from "node:fs";
 import { userInfo } from "node:os";
+import { join } from "node:path";
 import {
   commit,
   ghAnswers,
   ghCalls,
   git,
+  githubRequests,
   refusal,
   registryFails,
   registryRequests,
@@ -18,6 +21,8 @@ import {
   tapHolds,
   usageCodeOf,
   type World,
+  world,
+  write,
 } from "./harness";
 
 afterEach(removeScratchDirs);
@@ -233,13 +238,28 @@ test("AC-22 status waits on the runs the tag started, up to 60 minutes", () => {
   ]);
 });
 
-test("AC-29 the suite's home is scratch, and every gh and registry call reaches a stand-in that records it", () => {
+test("AC-29 the suite's home is scratch, and every gh, registry and GitHub API call reaches a stand-in that records it", () => {
   const shipped = shippedRepo();
   result(status(shipped));
   expect(shipped.w.env.HOME).not.toBe(userInfo().homedir);
-  for (const variable of ["HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME"])
+  for (const variable of ["HOME", "XDG_CONFIG_HOME", "XDG_DATA_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"])
     expect(String(shipped.w.env[variable])).toStartWith(shipped.w.root);
   expect(registryRequests(shipped.w)).toEqual(["GET /app", "GET /@owner%2fapp-core"]);
   const groups = ghCalls(shipped.w).map(([group, verb]) => `${group} ${verb}`);
   expect(groups.toSorted()).toEqual(["api --paginate", "api -H", "run list"]);
+
+  const released = world();
+  const bin = join(String(released.env.HOME), ".local", "bin");
+  write(bin, "app", "#!/bin/sh\necho 1.0.0\n");
+  chmodSync(join(bin, "app"), 0o755);
+  symlinkSync(join(bin, "app"), join(released.bin, "app"));
+  write(released.github, "repos/owner/app/releases/latest", `${JSON.stringify({ tag_name: "v1.0.0" })}\n`);
+  expect(run(released, released.root, ["notice", "app", "owner/app"])).toEqual({
+    exitCode: 0,
+    stdout: "",
+    stderr: "",
+  });
+  expect(githubRequests(released)).toEqual([
+    "GET /repos/owner/app/releases/latest application/vnd.github+json",
+  ]);
 });

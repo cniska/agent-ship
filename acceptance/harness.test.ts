@@ -63,7 +63,7 @@ describe("binWith links each program past launcher shims", () => {
 describe("each world is its own machine", () => {
   test("gives a world its own home and XDG directories under its root", () => {
     const w = world();
-    for (const variable of ["HOME", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME"])
+    for (const variable of ["HOME", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_STATE_HOME", "XDG_CACHE_HOME"])
       expect(w.env[variable]?.startsWith(`${w.root}/`)).toBe(true);
   });
 
