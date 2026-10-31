@@ -214,8 +214,8 @@ test("AC-9 each comment led by TODO or FIXME outside tests, Markdown and notes i
   commit(w, dir, "chore: files", {
     "ship.toml": `notes = ["CHANGELOG.md"]\n${SHIP_TOML}`,
     "src/a.ts": "const a = 1;\nconst b = 2;\n// TODO tidy\n",
-    "src/b.ts": "const a = 1;\n// FIXME: x\nconst TODOS = 3;\n",
-    "src/c.ts": 'const s = "TODO";\nconst p = /\\b(?:TODO|FIXME)\\b/;\n// later TODO\n',
+    "src/b.ts": "const a = 1;\n// FIXME: x\n// TODOS\n",
+    "src/c.ts": 'const s = "TODO";\nconst p = /\\b(?:TODO|FIXME)\\b/;\n// later TODO\nconst x = a * TODO;\n',
     "src/e.py": "# TODO a\n",
     "src/f.sql": "-- FIXME\n",
     "src/g.ts": "/*\n * TODO b\n */\n/* FIXME */\n",
