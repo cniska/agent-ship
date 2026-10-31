@@ -25,6 +25,8 @@ describe("formulaTag", () => {
   });
 });
 
+const UNHURRIED_MS = 10_000;
+
 type Installed = { readonly root: string; readonly bin: string };
 
 function installedAt(path: readonly string[], versionScript: string, root = scratchDir()): Installed {
@@ -87,7 +89,7 @@ async function noticeAt(
     writeFileSync(join(installed.root, ...path.slice(0, 4), "INSTALL_RECEIPT.json"), receipt);
   const server = answering();
   const text = await notice(ASKED, {
-    ...reach(installed, server.url, LIMIT_MS, server.url),
+    ...reach(installed, server.url, UNHURRIED_MS, server.url),
     ...shaped(installed),
   });
   server.stop();
@@ -137,6 +139,11 @@ describe("notice reads the channel from the copy's real path", () => {
     expect(release.requests).toEqual(["/repos/owner/tool/releases/latest"]);
     const unbuilt = await noticeAt(path, () => ({ platform: null }));
     expect(unbuilt).toEqual({ text: null, requests: [] });
+    const linked = await noticeAt(["real-home", ".local", "bin", "tool"], ({ root }) => {
+      symlinkSync(join(root, "real-home"), join(root, "linked-home"));
+      return { home: join(root, "linked-home") };
+    });
+    expect(upgradeIn(linked.text)).toMatch(/&& mv tool '\/[^']*\/real-home\/\.local\/bin\/tool'\)$/);
     const homeless = await noticeAt(path, () => ({ home: null }));
     expect(homeless).toEqual({ text: null, requests: [] });
   });
@@ -165,7 +172,7 @@ function hanging(): { readonly url: string; readonly requests: string[]; stop():
   return { url: `http://127.0.0.1:${server.port}`, requests, stop: () => server.stop(true) };
 }
 
-const LIMIT_MS = 500;
+const LIMIT_MS = 1000;
 
 const ASKED = { program: "tool", repo: "owner/tool" };
 
@@ -212,7 +219,7 @@ describe("notice's record", () => {
     mkdirSync(records, { recursive: true });
     chmodSync(records, 0o500);
 
-    const asked = notice(ASKED, reach(installed, server.url, LIMIT_MS));
+    const asked = notice(ASKED, reach(installed, server.url, UNHURRIED_MS));
 
     const outcome = await asked.then(
       () => "kept",

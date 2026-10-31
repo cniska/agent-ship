@@ -78,7 +78,7 @@ When the newest version is above the one the copy prints for `--version`, `notic
 `notice` prints nothing, and exits 0, when:
 
 - the program is not on `PATH`, or its copy is anywhere else, a checkout among them; the program is then not run
-- `--version` prints no `x.y.z`, or takes more than 2 seconds
+- `--version` prints anything but the version `x.y.z` alone, or takes more than 2 seconds
 - the lookup fails: unreachable, over 2 seconds, answered with a status other than success, such as a rate limit, or answered with what it cannot read
 - the copy is current
 

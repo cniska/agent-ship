@@ -118,7 +118,11 @@ function channelOf(realPath: string, reach: NoticeReach): InstallChannel | null 
   const npm = NPM_GLOBAL.exec(realPath)?.[1];
   if (npm !== undefined) return { kind: "npm", pkg: npm };
   const dir = dirname(realPath);
-  if (reach.home !== null && reach.platform !== null && dir === join(reach.home, ...GITHUB_INSTALL_DIR))
+  if (
+    reach.home !== null &&
+    reach.platform !== null &&
+    dir === resolvedDir(join(reach.home, ...GITHUB_INSTALL_DIR))
+  )
     return { kind: "github", dir, platform: reach.platform };
   return null;
 }
@@ -128,6 +132,10 @@ function tapOf(keg: string): string | null {
   if (!isTable(receipt) || !isTable(receipt.source)) return null;
   const { tap } = receipt.source;
   return typeof tap === "string" && TAP.test(tap) ? tap : null;
+}
+
+function resolvedDir(path: string): string {
+  return statSync(path, { throwIfNoEntry: false })?.isDirectory() === true ? realpathSync(path) : path;
 }
 
 function readOrNull(path: string): string | null {

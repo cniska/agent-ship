@@ -128,6 +128,8 @@ A project that ships through agent-ship turns on its update notice with one line
 
 At each session start, when a newer release of `<program>` is out, the agent reads a note naming the installed and newest versions and the one command that upgrades the copy through the channel it came from, and runs it. On a machine without agent-ship, or with an agent-ship too old to have `notice`, the line prints nothing. [Notice](commands.md#notice) says how the channel is read and when it stays silent.
 
+The program prints its version alone, `x.y.z`, for `--version`; a copy that prints anything else gets no notice.
+
 A GitHub-release install gets the notice when it follows two conventions:
 
 - The release holds `<program>-<target>.tar.gz`, with `<program>` at its root, for `darwin-arm64` and `linux-x64`, and `SHA256SUMS.txt` lists each tarball, as agent-ship's own `assemble` writes it.
