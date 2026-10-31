@@ -6,7 +6,7 @@ Each command prints [TOON](https://toonformat.dev): a result on stdout, or an er
 
 | Command | Does |
 | --- | --- |
-| `agent-ship check [<app>]` | Judge whether HEAD can be released, refusing with the first failing condition in [Errors](#errors); print the app, the version, the tag, the previous tag, the number of commits since it, the [bump](#the-bump) with the commits that decide it, and a [warning](#warnings) for each `TODO` or `FIXME`; change nothing |
+| `agent-ship check [<app>]` | Judge whether HEAD can be released, refusing with the first failing condition in [Errors](#errors); print the app, the version, the tag, the previous tag, the number of commits since it, the [bump](#the-bump) with the commits that decide it, and a [warning](#warnings) for each `TODO` or `FIXME` comment; change nothing |
 | `agent-ship release [<patch\|minor\|major\|<version>>] [<app>] [--dry-run]` | Write the new version, by the bump when no level or version is given, run `check` on it, commit it alone as `chore: release <tag>`, create the annotated tag, and print the command that pushes the branch and the tag; never push |
 | `agent-ship release --dry-run` | Refuse as `release` would, without running the project's check command, or print the version, the tag, the commit's subject and the push command; change nothing |
 | `agent-ship status <tag>` | Wait up to 60 minutes for a finished run of each workflow the tag's push triggers, and report each run `passed`, `failed`, `running` or `missing`; report each channel of the tag's app as `served`, `missing`, or `unreadable` with the reason; exit 1 when a run is not `passed` or a channel is not `served` |
@@ -33,7 +33,7 @@ Once a release is made and more commits land, the version's tag is behind HEAD. 
 
 ## Warnings
 
-`check` warns on each line holding `TODO` or `FIXME` as a whole word in a tracked file, except test files, Markdown files and the `notes` paths. A test file has a path segment `test`, `tests` or `__tests__`, or a name holding `.test.` or `.spec.`. A warning refuses nothing.
+`check` warns on each line of a tracked file where `TODO` or `FIXME`, as a whole word, is the first word after a comment opener: `//`, `/*`, `#`, `--`, `;`, or a `*` that is the line's first non-blank character. Test files, Markdown files and the `notes` paths give no warning. A test file has a path segment `test`, `tests` or `__tests__`, or a name holding `.test.`, `.spec.` or `.acceptance.`. A warning refuses nothing.
 
 ## Status
 

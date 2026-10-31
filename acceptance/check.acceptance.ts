@@ -208,15 +208,21 @@ test("AC-8 a credential is read from the environment, then .env, then the Action
   expect(failed.meta).toEqual({ command: "exit 3", status: 3 });
 });
 
-test("AC-9 each TODO or FIXME line outside tests, Markdown and notes is a warning that refuses nothing", () => {
+test("AC-9 each comment led by TODO or FIXME outside tests, Markdown and notes is a warning that refuses nothing", () => {
   const { w, dir } = releasedRepo();
-  const todo = "TODO\n";
+  const todo = "// TODO\n";
   commit(w, dir, "chore: files", {
     "ship.toml": `notes = ["CHANGELOG.md"]\n${SHIP_TOML}`,
     "src/a.ts": "const a = 1;\nconst b = 2;\n// TODO tidy\n",
     "src/b.ts": "const a = 1;\n// FIXME: x\nconst TODOS = 3;\n",
+    "src/c.ts": 'const s = "TODO";\nconst p = /\\b(?:TODO|FIXME)\\b/;\n// later TODO\n',
+    "src/e.py": "# TODO a\n",
+    "src/f.sql": "-- FIXME\n",
+    "src/g.ts": "/*\n * TODO b\n */\n/* FIXME */\n",
+    "src/h.el": "; TODO\n",
     "src/a.test.ts": todo,
     "src/a.spec.ts": todo,
+    "src/a.acceptance.ts": todo,
     "test/c.ts": todo,
     "tests/c.ts": todo,
     "__tests__/c.ts": todo,
@@ -227,6 +233,11 @@ test("AC-9 each TODO or FIXME line outside tests, Markdown and notes is a warnin
   const expected = [
     { file: "src/a.ts", line: 3 },
     { file: "src/b.ts", line: 2 },
+    { file: "src/e.py", line: 1 },
+    { file: "src/f.sql", line: 1 },
+    { file: "src/g.ts", line: 2 },
+    { file: "src/g.ts", line: 4 },
+    { file: "src/h.el", line: 1 },
   ];
   expect(result(checked(w, dir)).warnings).toEqual(expected);
   write(dir, ".gitignore", ".env\nsrc/d.ts\n");

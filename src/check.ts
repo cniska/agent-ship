@@ -19,11 +19,11 @@ export type Checked = {
   readonly warnings: readonly Warning[];
 };
 
-const MARKER = /\b(?:TODO|FIXME)\b/;
+const MARKER = /(?:\/\/|\/\*|#|--|;|^\s*\*)\s*(?:TODO|FIXME)\b/;
 
 const TEST_SEGMENTS = new Set(["test", "tests", "__tests__"]);
 
-const TEST_NAME = /\.(?:test|spec)\./;
+const TEST_NAME = /\.(?:test|spec|acceptance)\./;
 
 const MARKDOWN = /\.md$/i;
 
