@@ -44,6 +44,8 @@ function npmInstall(versionScript: string): Installed {
   return installedAt(["lib", "node_modules", "@scope", "tool", "tool"], versionScript);
 }
 
+const NOW = 1_000_000;
+
 function reach(installed: Installed, registry: string, githubApi = "http://127.0.0.1:9"): NoticeReach {
   return {
     home: join(installed.root, "home"),
@@ -54,7 +56,7 @@ function reach(installed: Installed, registry: string, githubApi = "http://127.0
     lookupLimitMs: UNHURRIED_MS,
     env: { PATH: installed.bin },
     registry,
-    now: () => 1_000_000,
+    now: () => NOW,
   };
 }
 
@@ -168,6 +170,24 @@ function hanging(): { readonly url: string; readonly requests: string[]; stop():
   return { url: `http://127.0.0.1:${server.port}`, requests, stop: () => server.stop(true) };
 }
 
+function recordFile(installed: Installed): string {
+  return join(installed.root, "cache", "agent-ship", "notice", "tool.json");
+}
+
+function recordIn(installed: Installed): unknown {
+  return JSON.parse(readFileSync(recordFile(installed), "utf8"));
+}
+
+const KEPT_VERSION = "9.9.9";
+
+function keptRecord(installed: Installed, source: string): void {
+  mkdirSync(dirname(recordFile(installed)), { recursive: true });
+  writeFileSync(
+    recordFile(installed),
+    JSON.stringify({ checked: NOW - 1000, source, found: { kind: "newest", version: KEPT_VERSION } }),
+  );
+}
+
 const LIMIT_MS = 100;
 
 const STALL_MS = 5000;
@@ -185,11 +205,8 @@ describe("notice within its time limit", () => {
     registry.stop();
     expect(text).toBeNull();
     expect(performance.now() - started).toBeLessThan(STALL_MS);
-    const record: unknown = JSON.parse(
-      readFileSync(join(installed.root, "cache", "agent-ship", "notice", "tool.json"), "utf8"),
-    );
-    expect(record).toMatchObject({
-      checked: 1_000_000,
+    expect(recordIn(installed)).toMatchObject({
+      checked: NOW,
       source: "npm @scope/tool",
       found: { kind: "failed", code: "timeout" },
     });
@@ -213,7 +230,7 @@ describe("notice's record", () => {
   test("a record it cannot write is the fault record_unwritable, naming the directory to make writable", async () => {
     const installed = npmInstall("echo 1.0.0");
     const server = answering();
-    const records = join(installed.root, "cache", "agent-ship", "notice");
+    const records = dirname(recordFile(installed));
     mkdirSync(records, { recursive: true });
     chmodSync(records, 0o500);
 
@@ -231,5 +248,43 @@ describe("notice's record", () => {
       resolve: `make ${records} writable, or set XDG_CACHE_HOME to a writable directory, then run the command again`,
     });
     expect(server.requests).toEqual(["/@scope%2ftool"]);
+  });
+
+  test("a fresh record from another channel is not reused: the copy's own channel is asked", async () => {
+    const bun = ["home", ".bun", "install", "global", "node_modules", "@scope", "tool", "tool"];
+    for (const [kept, asks, newest] of [
+      ["npm @scope/tool", ["/@scope%2ftool"], "1.1.0"],
+      ["bun @scope/tool", [], KEPT_VERSION],
+    ] as const) {
+      const installed = installedAt(bun, "echo 1.0.0");
+      keptRecord(installed, kept);
+      const server = answering();
+
+      const text = await notice(ASKED, reach(installed, server.url));
+
+      server.stop();
+      expect(server.requests).toEqual([...asks]);
+      expect(text).toStartWith(`tool 1.0.0 is installed, and ${newest} is out.`);
+      expect(recordIn(installed)).toMatchObject({ source: "bun @scope/tool" });
+    }
+  });
+
+  test("records an answer it cannot read as unparsable, and a registry it cannot reach as unreachable", async () => {
+    const unreadable = Bun.serve({ hostname: "127.0.0.1", port: 0, fetch: () => Response.json({}) });
+    for (const [registry, code] of [
+      [`http://127.0.0.1:${unreadable.port}`, "unparsable"],
+      ["http://127.0.0.1:9", "unreachable"],
+    ] as const) {
+      const installed = npmInstall("echo 1.0.0");
+
+      const text = await notice(ASKED, reach(installed, registry));
+
+      expect(text).toBeNull();
+      expect(recordIn(installed)).toMatchObject({
+        source: "npm @scope/tool",
+        found: { kind: "failed", code },
+      });
+    }
+    await unreadable.stop(true);
   });
 });
