@@ -55,6 +55,7 @@ Upgrade through the channel you installed from:
 ```bash
 brew upgrade agent-ship
 npm update -g @cniska/agent-ship
+bun update -g @cniska/agent-ship
 ```
 
 Installed with Homebrew, npm or bun, agent-ship asks that channel for its latest version at most once a day. While a newer one is out, every command prints one line on stderr, and stdout and the exit status stay the same:

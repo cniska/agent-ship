@@ -2,7 +2,7 @@
 
 The `agent-ship` commands, their output and refusals, and the `ship.toml` they read. [`SPEC.md`](../SPEC.md) states what must hold.
 
-Each command prints [TOON](https://toonformat.dev): a result on stdout, or an error on stderr naming the act that resolves it, each beside the command's name and `ok`.
+Each command prints [TOON](https://toonformat.dev): a result on stdout, or an error on stderr naming the act that resolves it, each beside the command's name and `ok`. While a newer release is out, the [update check](#update-check)'s line comes first on stderr, as plain text.
 
 | Command | Does |
 | --- | --- |
@@ -74,7 +74,7 @@ Any other path, such as a checkout Bun runs or a binary placed by hand, checks n
 - **Once a day.** It asks the channel at most once in 24 hours, waiting at most 1 second.
 - **The record.** `agent-ship/update-check.json` under `$XDG_STATE_HOME`, else `~/.local/state`, keeps the answer. A failed or timed-out ask counts as that day's check and prints nothing; when the record cannot be written, it asks nothing.
 - **The line.** While the running version is older than the latest one known, every command prints one line on stderr before its own output, such as `agent-ship 0.3.0 is out (running 0.2.0): run npm update -g @cniska/agent-ship; if you cannot, tell the user.` Stdout and the exit status stay the same.
-- **Off.** It asks nothing and prints nothing when `CI` or `AGENT_SHIP_NO_UPDATE_CHECK` is set to a non-empty value. The `cniska-ship` plugin's session-start hook sets `AGENT_SHIP_NO_UPDATE_CHECK`.
+- **Off.** It asks nothing and prints nothing when `CI` or `AGENT_SHIP_NO_UPDATE_CHECK` is set to a non-empty value. The `cniska-ship` plugin's session-start hook sets `AGENT_SHIP_NO_UPDATE_CHECK` only for its own `agent-ship --version` call, so the commands a session runs still check.
 
 ## Errors
 
