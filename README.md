@@ -29,6 +29,12 @@ With npm, which installs the package for your platform and needs no Bun:
 npm install --global @cniska/agent-ship
 ```
 
+With bun:
+
+```bash
+bun install --global @cniska/agent-ship
+```
+
 From a [GitHub release](https://github.com/cniska/agent-ship/releases), verify the tarball before you unpack it:
 
 ```bash
@@ -64,7 +70,7 @@ Installed with Homebrew, npm or bun, agent-ship asks that channel for its latest
 agent-ship 0.3.0 is out (running 0.2.0): run brew upgrade agent-ship; if you cannot, tell the user.
 ```
 
-Set `AGENT_SHIP_NO_UPDATE_CHECK=1` to turn the check off; it is off whenever `CI` is set too. [Commands](docs/commands.md#update-check) has the details.
+Set `AGENT_SHIP_NO_UPDATE_CHECK=1` to turn the check off; it is off whenever `CI` is set to a non-empty value too. [Commands](docs/commands.md#update-check) has the details.
 
 ## Why
 
