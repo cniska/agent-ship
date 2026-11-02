@@ -233,7 +233,7 @@ test("AC-22 status waits on the runs the tag started, up to 60 minutes", () => {
   ]);
 });
 
-test("AC-29 the suite's home is scratch, and every gh and registry call reaches a stand-in that records it", () => {
+test("AC-29 the suite's home is scratch, and every gh, registry and GitHub API call reaches a stand-in that records it", () => {
   const shipped = shippedRepo();
   result(status(shipped));
   expect(shipped.w.env.HOME).not.toBe(userInfo().homedir);

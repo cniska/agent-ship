@@ -48,6 +48,23 @@ claude plugin install cniska-ship@cniska
 
 To run it from a checkout with Bun, follow [Development](docs/development.md).
 
+## Upgrade
+
+Upgrade through the channel you installed from:
+
+```bash
+brew upgrade agent-ship
+npm update -g @cniska/agent-ship
+```
+
+Installed with Homebrew, npm or bun, agent-ship asks that channel for its latest version at most once a day. While a newer one is out, every command prints one line on stderr, and stdout and the exit status stay the same:
+
+```text
+agent-ship 0.3.0 is out (running 0.2.0): run brew upgrade agent-ship; if you cannot, tell the user.
+```
+
+Set `AGENT_SHIP_NO_UPDATE_CHECK=1` to turn the check off; it is off whenever `CI` is set too. [Commands](docs/commands.md#update-check) has the details.
+
 ## Why
 
 A project that ships to a GitHub release, npm and a Homebrew tap repeats the same release flow in scripts of its own: gate the tree, bump the version, commit, tag, then build, attest, publish and repin in CI. Each copy drifts from the others. agent-ship holds the flow once, so each repository keeps only its `ship.toml` and a `release.yml` that calls the reusable workflow.

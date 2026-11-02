@@ -36,6 +36,8 @@ export type Reach = {
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 
+const GITHUB_API = "https://api.github.com";
+
 const TRAILING_SLASH = /\/+$/;
 
 const SERVED: Found = { state: "served" };
@@ -46,7 +48,9 @@ const RELEASES_PATH = "repos/{owner}/{repo}/releases";
 
 const RELEASES = ["api", "--paginate", "--slurp", RELEASES_PATH];
 
-const RAW = ["-H", "Accept: application/vnd.github.raw+json"];
+export const GITHUB_RAW = "application/vnd.github.raw+json";
+
+const RAW = ["-H", `Accept: ${GITHUB_RAW}`];
 
 const FORMULA_URL = /^\s*url\s+"([^"]+)"/gm;
 
@@ -54,8 +58,16 @@ const FORMULA_VERSION = /^\s*version\s+"([^"]+)"/m;
 
 const RELEASE_DOWNLOAD = /\/releases\/download\/([^/]+)\//;
 
+function baseUrlOf(configured: string | undefined, fallback: string): string {
+  return (configured || fallback).replace(TRAILING_SLASH, "");
+}
+
 export function registryOf(configured: string | undefined): string {
-  return (configured || NPM_REGISTRY).replace(TRAILING_SLASH, "");
+  return baseUrlOf(configured, NPM_REGISTRY);
+}
+
+export function githubApiOf(configured: string | undefined): string {
+  return baseUrlOf(configured, GITHUB_API);
 }
 
 function releaseOf(value: unknown): Release | null {
@@ -106,7 +118,7 @@ function releaseServes(reach: Reach, files: readonly string[]): Found {
   return SERVED;
 }
 
-function packagePath(name: string): string {
+export function packagePath(name: string): string {
   return name.replace("/", "%2f");
 }
 

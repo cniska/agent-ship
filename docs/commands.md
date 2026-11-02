@@ -59,6 +59,23 @@ Then it reads each channel of the tag's app:
 
 A channel is `unreadable` when `gh` or the registry gives no answer agent-ship can read, and `missing` otherwise.
 
+## Update check
+
+Before any command runs, `--help` and `--version` among them, an installed agent-ship checks whether a newer release is out on the channel it was installed from. It reads that channel from its own executable's path:
+
+| Executable | Channel | Latest version | Upgrade command |
+| --- | --- | --- | --- |
+| `…/Cellar/agent-ship/<version>/bin/agent-ship` | Homebrew | The tag every `url` in `cniska/homebrew-tap`'s `Formula/agent-ship.rb` downloads from, read from GitHub's API, at `GITHUB_API_URL` when set | `brew upgrade agent-ship` |
+| A platform package's binary under `…/lib/node_modules/` | npm | The registry's `latest` dist-tag of `@cniska/agent-ship` | `npm update -g @cniska/agent-ship` |
+| A platform package's binary under `…/install/global/node_modules/` | bun | The same as npm | `bun update -g @cniska/agent-ship` |
+
+Any other path, such as a checkout Bun runs or a binary placed by hand, checks nothing.
+
+- **Once a day.** It asks the channel at most once in 24 hours, waiting at most 1 second.
+- **The record.** `agent-ship/update-check.json` under `$XDG_STATE_HOME`, else `~/.local/state`, keeps the answer. A failed or timed-out ask counts as that day's check and prints nothing; when the record cannot be written, it asks nothing.
+- **The line.** While the running version is older than the latest one known, every command prints one line on stderr before its own output, such as `agent-ship 0.3.0 is out (running 0.2.0): run npm update -g @cniska/agent-ship; if you cannot, tell the user.` Stdout and the exit status stay the same.
+- **Off.** It asks nothing and prints nothing when `CI` or `AGENT_SHIP_NO_UPDATE_CHECK` is set to a non-empty value. The `cniska-ship` plugin's session-start hook sets `AGENT_SHIP_NO_UPDATE_CHECK`.
+
 ## Errors
 
 An error carries `kind`, `code`, `message`, `meta` and `resolve`. The exit is 1 for a refusal, 2 for a usage error and 3 for a fault.

@@ -26,7 +26,7 @@ function stubAgentShip(): string {
     [
       "#!/bin/sh",
       'case "$1" in',
-      "  --version) echo 1.0.0 ;;",
+      '  --version) [ "$AGENT_SHIP_NO_UPDATE_CHECK" = 1 ] && echo 1.0.0 ;;',
       '  *) echo "ran agent-ship $*" ;;',
       "esac",
       "",
@@ -73,7 +73,7 @@ describe("the cniska-ship plugin", () => {
     for (const word of ["publish", "testflight", "play", "developer-id"]) expect(NOTE).not.toContain(word);
   });
 
-  test("prints only the note, running no agent-ship command but --version", () => {
+  test("prints only the note, running no agent-ship command but --version, with the update check off", () => {
     expect(hook(`${stubAgentShip()}:${SYSTEM_PATH}`)).toEqual({ status: 0, stdout: NOTE, stderr: "" });
   });
 
